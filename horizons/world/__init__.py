@@ -163,7 +163,7 @@ class World(BuildingOwner, LivingObject, WorldObject):
 		border = 30
 		for x in xrange(self.min_x-border, self.max_x+border, 10):
 			for y in xrange(self.min_y-border, self.max_y+border, 10):
-				ground = default_grounds(self.session, x, y)
+				ground = default_grounds(self.session.view, x, y)
 				for x_offset in xrange(0,10):
 					if x+x_offset < self.max_x and x+x_offset>= self.min_x:
 						for y_offset in xrange(0,10):

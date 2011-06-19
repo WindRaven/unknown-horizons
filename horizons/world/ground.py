@@ -31,9 +31,9 @@ from horizons.constants import LAYERS, GROUND
 class SurfaceTile(object):
 	is_water = False
 	layer = LAYERS.GROUND
-	def __init__(self, session, x, y):
+	def __init__(self, view, x, y):
 		"""
-		@param session: Session instance
+		@param view: View instance
 		@param x: int x position the ground is created.
 		@param y: int y position the ground is created.
 		"""
@@ -44,7 +44,7 @@ class SurfaceTile(object):
 		self.blocked = False
 		self.object = None
 
-		self._instance = session.view.layers[self.layer].createInstance(self._object, \
+		self._instance = view.layers[self.layer].createInstance(self._object, \
 		                    fife.ModelCoordinate(int(x), int(y), 0), "")
 		fife.InstanceVisual.create(self._instance)
 
