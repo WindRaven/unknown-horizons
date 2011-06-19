@@ -19,24 +19,23 @@
 # 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 # ###################################################
 
-import horizons.main
 
 from storage import PositiveSizedSlotStorage
-from horizons.util import WorldObject, WeakList, NamedObject
+from horizons.util import WorldObject, NamedObject
 from tradepost import TradePost
 
 class Settlement(TradePost, NamedObject):
 	"""The Settlement class describes a settlement and stores all the necessary information
 	like name, current inhabitants, lists of tiles and houses, etc belonging to the village."""
-	def __init__(self, session, owner):
+	def __init__(self, db, owner):
 		"""
 		@param owner: Player object that owns the settlement
 		"""
-		self.__init(session, owner)
+		self.db = db
+		self.__init(owner)
 		super(Settlement, self).__init__()
 
-	def __init(self, session, owner, tax_setting=1.0):
-		self.session = session
+	def __init(self, owner, tax_setting=1.0):
 		self.owner = owner
 		self.tax_setting = tax_setting
 		self.buildings = []
@@ -50,7 +49,7 @@ class Settlement(TradePost, NamedObject):
 		self.tax_setting = tax
 
 	def _possible_names(self):
-		names = horizons.main.db("SELECT name FROM data.citynames WHERE for_player = 1")
+		names = self.db("SELECT name FROM data.citynames WHERE for_player = 1")
 		return map(lambda x: x[0], names)
 
 	@property
@@ -100,7 +99,7 @@ class Settlement(TradePost, NamedObject):
 		self = cls.__new__(cls)
 
 		owner, tax = db("SELECT owner, tax_setting FROM settlement WHERE rowid = ?", worldid)[0]
-		self.__init(session, WorldObject.get_object_by_id(owner), tax)
+		self.__init(WorldObject.get_object_by_id(owner), tax)
 
 		# load super here cause basic stuff is just set up now
 		super(Settlement, self).load(db, worldid)
