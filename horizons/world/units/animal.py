@@ -254,7 +254,7 @@ class WildAnimal(CollectorAnimal, Collector):
 		"""Returns, whether the next child will be able to reproduce himself.
 		Some animal can't reproduce, which makes population growth easier to control.
 		@return: bool"""
-		return (self.session.random.randint(0, 2) > 0) # 2/3 chance for True
+		return (random.randint(0, 2) > 0) # 2/3 chance for True
 
 	def die(self):
 		"""Makes animal die, e.g. because of starvation or getting killed by herder"""
@@ -300,7 +300,7 @@ class FarmAnimal(CollectorAnimal, BuildingCollector):
 		my_position = self.position.to_tuple()
 		if my_position in coords:
 			coords.remove(my_position)
-		self.session.random.shuffle(coords)
+		random.shuffle(coords)
 		return coords
 
 	def begin_current_job(self):

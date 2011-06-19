@@ -19,6 +19,8 @@
 # 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 # ###################################################
 
+import random
+
 from horizons.world.building.building import BasicBuilding
 from horizons.world.building.buildable import BuildableRect, BuildableSingleEverywhere
 from horizons.world.building.collectingbuilding import CollectingBuilding
@@ -88,7 +90,7 @@ class ResourceDeposit(SelectableBuilding, StorageHolder, NatureBuilding):
 			for resource, min_amount, max_amount in \
 			    self.session.db("SELECT resource, min_amount, max_amount FROM deposit_resources WHERE id = ?", \
 			                    self.id):
-				self.inventory.alter(resource, self.session.random.randint(min_amount, max_amount))
+				self.inventory.alter(resource, random.randint(min_amount, max_amount))
 		else: # deposit was removed for mine, now build back
 			for res, amount in inventory.iteritems():
 				self.inventory.alter(res, amount)

@@ -20,6 +20,7 @@
 # ###################################################
 
 import operator
+import random
 import logging
 
 from horizons.scheduler import Scheduler
@@ -496,7 +497,7 @@ class JobList(list):
 
 	def _sort_jobs_random(self):
 		"""Sorts jobs randomly"""
-		self.collector.session.random.shuffle(self)
+		random.shuffle(self)
 
 	def _sort_jobs_amount(self):
 		"""Sorts the jobs by the amount of resources available"""
@@ -506,7 +507,7 @@ class JobList(list):
 		"""Prefer jobs where least amount is available in obj's inventory"""
 		# shuffle list before sorting, so that jobs with same value have equal chance
 		if shuffle_first:
-			self.collector.session.random.shuffle(self)
+			random.shuffle(self)
 		inventory = self.collector.get_home_inventory()
 		self.sort(key=lambda job: inventory[job.res], reverse=False)
 

@@ -19,6 +19,8 @@
 # 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 # ###################################################
 
+import random
+
 from horizons.util.shapes.point import Point
 from horizons.util.shapes.circle import Circle
 from horizons.util.python import decorators
@@ -33,7 +35,7 @@ class BuildingIndexer(object):
 	building that provides resource X in my range'.
 	"""
 
-	def __init__(self, radius, coords_list, random):
+	def __init__(self, radius, coords_list):
 		"""
 		Create a BuildingIndexer
 		@param radius: int, maximum required radius of the buildings
@@ -43,7 +45,7 @@ class BuildingIndexer(object):
 		self._offsets = Circle(Point(0, 0), radius).get_coordinates()
 		self._map = {}
 		for coords in coords_list:
-			self._map[coords] = BuildingIndex(coords, random)
+			self._map[coords] = BuildingIndex(coords)
 		self._add_set = set()
 		self._remove_set = set()
 		self._changed = False
@@ -125,9 +127,8 @@ class BuildingIndex(object):
 	The code isn't particularly pretty for performance reasons.
 	"""
 
-	def __init__(self, coords, random):
+	def __init__(self, coords):
 		self._coords = coords
-		self._random = random
 		self._add_set = set()
 		self._remove_set = set()
 		self._list = []
@@ -179,7 +180,7 @@ class BuildingIndex(object):
 		if self._changed:
 			self._update()
 		if self._list:
-			return self._random.choice(self._list)[5]
+			return random.choice(self._list)[5]
 		return None
 
 	def get_num_buildings_in_range(self):

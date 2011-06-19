@@ -21,6 +21,7 @@
 
 import os
 import os.path
+import random
 import logging
 
 import horizons.main
@@ -84,7 +85,7 @@ class Session(LivingObject):
 		NamedObject.reset()
 
 		#game
-		self.random = self.create_rng(rng_seed)
+		random.seed(rng_seed)
 		self.timer = self.create_timer()
 		Scheduler.create_instance(self.timer)
 		self.manager = self.create_manager()

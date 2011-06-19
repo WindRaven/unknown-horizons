@@ -21,6 +21,7 @@
 
 import math
 import logging
+import random
 from fife import fife
 
 import horizons.main
@@ -147,7 +148,7 @@ class Unit(AmbientSound, MovingObject):
 		@param in_range: int, max distance to returned point from current position
 		@return: tuple(Instance of Point or None, path or None)"""
 		range_squared = in_range * in_range
-		randint = self.session.random.randint
+		randint = random.randint
 		# pick a sample, try tries times
 		tries = int(range_squared / 2)
 		for i in xrange(tries):

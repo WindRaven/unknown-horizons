@@ -20,6 +20,7 @@
 # ###################################################
 
 import logging
+import random
 
 import horizons.main
 
@@ -170,7 +171,7 @@ class Trader(AIPlayer):
 		else:
 			# select a branch office
 			if branch_office is None:
-				rand = self.session.random.randint(0, len(branchoffices)-1)
+				rand = random.randint(0, len(branchoffices)-1)
 				self.office[ship.worldid] = branchoffices[rand]
 			else:
 				self.office[ship.worldid] = branch_office
@@ -197,7 +198,7 @@ class Trader(AIPlayer):
 		settlement = self.office[ship.worldid].settlement
 		# NOTE: must be sorted for mp games (same order everywhere)
 		for res in sorted(settlement.buy_list.iterkeys()): # check for resources that the settlement wants to buy
-			amount = self.session.random.randint(*TRADER.SELL_AMOUNT) # select a random amount to sell
+			amount = random.randint(*TRADER.SELL_AMOUNT) # select a random amount to sell
 			if amount == 0:
 				continue
 			price = int(self.session.db.get_res_value(res) * TRADER.PRICE_MODIFIER_SELL * amount)
@@ -208,7 +209,7 @@ class Trader(AIPlayer):
 		# NOTE: must be sorted for mp games (same order everywhere)
 		for res in sorted(settlement.sell_list.iterkeys()):
 			# select a random amount to buy from the settlement
-			amount = self.session.random.randint(*TRADER.BUY_AMOUNT)
+			amount = random.randint(*TRADER.BUY_AMOUNT)
 			if amount == 0:
 				continue
 			price = int(self.session.db.get_res_value(res) * TRADER.PRICE_MODIFIER_BUY * amount)
@@ -225,7 +226,7 @@ class Trader(AIPlayer):
 		"""Called if a ship is idle. Sends ship to a random place or  branch office (which target
 		to use is decided by chance, probability for branch office (BUSINESS_S.) is 2/3 by default)
 		@param ship: ship instance"""
-		if self.session.random.randint(0, 100) < TRADER.BUSINESS_SENSE:
+		if random.randint(0, 100) < TRADER.BUSINESS_SENSE:
 			# delay one tick, to allow old movement calls to completely finish
 			self.log.debug("Trader %s ship %s: idle, moving to random bo", self.worldid, ship.worldid)
 			Scheduler().add_new_object(Callback(self.send_ship_random_branch, ship), self, run_in=0)

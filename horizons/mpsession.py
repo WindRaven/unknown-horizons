@@ -38,9 +38,6 @@ class MPSession(Session):
 	def create_manager(self):
 		return MPManager(self, self.__network_interface)
 
-	def create_rng(self, seed=None):
-		return random.Random(seed)
-
 	def create_timer(self):
 		return Timer(freeze_protection=False)
 

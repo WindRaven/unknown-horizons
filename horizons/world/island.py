@@ -77,7 +77,7 @@ class Island(BuildingOwner, WorldObject):
 
 		# create building indexers
 		self.building_indexers = {}
-		self.building_indexers[BUILDINGS.TREE_CLASS] = BuildingIndexer(WildAnimal.walking_range, self, self.session.random)
+		self.building_indexers[BUILDINGS.TREE_CLASS] = BuildingIndexer(WildAnimal.walking_range, self)
 
 		# load settlements
 		for (settlement_id,) in db("SELECT rowid FROM settlement WHERE island = ?", islandid):

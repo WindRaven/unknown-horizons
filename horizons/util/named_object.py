@@ -19,6 +19,7 @@
 # 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 # ###################################################
 
+import random
 from horizons.util import WorldObject
 
 class NamedObject(WorldObject):
@@ -44,7 +45,7 @@ class NamedObject(WorldObject):
 		return ['object_%s' % self.worldid]
 
 	def get_default_name(self):
-		newname = newnametmp = self.session.random.choice(self._possible_names())
+		newname = newnametmp = random.choice(self._possible_names())
 		index = 2
 		while newname in NamedObject.names_used:
 			newname = newnametmp + ' ' + `index`
