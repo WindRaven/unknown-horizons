@@ -46,6 +46,15 @@ class DbReader(object):
 		assert not command.endswith(";")
 		command = '%s;' % command
 		self.cur.execute(command, args)
+		# Don't call fetchall() on DML/DDL queries. And transactional stuff.
+		if ('ATTACH' in command or
+			'DELETE' in command or
+			'INSERT' in command or
+			'UPDATE' in command or
+			'COMMIT' in command or
+			'CREATE' in command or
+			'TRANSACTION' in command):
+			return []
 		return SqlResult(self.cur.fetchall(), None if self.cur.rowcount == -1 else self.cur.rowcount, self.cur.lastrowid)
 
 	@decorators.cachedmethod
