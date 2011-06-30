@@ -225,7 +225,7 @@ def game_test(*args, **kwargs):
 	"""
 	no_decorator_arguments = len(args) == 1 and not kwargs and inspect.isfunction(args[0])
 
-	timeout = kwargs.get('timeout', 5)
+	timeout = kwargs.get('timeout', 60)
 	mapgen = kwargs.get('mapgen', create_map)
 
 	def handler(signum, frame):
