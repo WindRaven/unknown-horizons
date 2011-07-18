@@ -46,12 +46,20 @@ class Minimap(object):
 
 	__next_minimap_id = 0
 
-	def __init__(self, rect, session, renderer):
+	def __init__(self, position, session, renderer, base_image=None):
 		"""
-		@param rect: a Rect, where we will draw to
+		@param position: Point or pychan Icon
 		@param renderer: renderer to be used. Only fife.GenericRenderer is explicitly supported.
+		@param base_image: Image that will be drawn on. If two minimaps share this, they will show the same thing.
 		"""
-		self.location = rect
+		img = base_image if base_image is not None else self.MINIMAP_BASE_IMAGE
+		self.minimap_image = _MinimapImage(horizons.main.fife.imagepool, img)
+
+		if hasattr(position, "image"):
+			position.image = base_image
+
+		self.location = Rect.init_from_topleft_and_size(position.x, position.y, *self.minimap_image.get_dimensions())
+
 		self.renderer = renderer
 		self.session = session
 		self.rotation = 0
@@ -62,8 +70,7 @@ class Minimap(object):
 		self._id = str(self.__class__.__next_minimap_id) # internal identifier, used for allocating resources
 		self.__class__.__next_minimap_id += 1
 
-		self.minimap_image = _MinimapImage(horizons.main.fife.imagepool, self.MINIMAP_BASE_IMAGE)
-
+		self._cam_border_corners = []
 
 	def end(self):
 		self.world = None
@@ -85,6 +92,7 @@ class Minimap(object):
 		self.update_cam()
 
 		# reset image
+		print 'reset'
 		self.renderer.removeAll("minimap_a_image"+self._id);
 		self.minimap_image.reset()
 		node = fife.GenericRendererNode( fife.Point(self.location.center().x, self.location.center().y) )
@@ -102,7 +110,19 @@ class Minimap(object):
 		"""Redraw camera border."""
 		if self.world is None or not self.world.inited:
 			return # don't draw while loading
-		self.renderer.removeAll("minimap_b_cam_border"+self._id)
+		#self.renderer.removeAll("minimap_b_cam_border"+self._id)
+
+		# TODO: clear cam
+		"""
+		for i in xrange(0, 4):
+			a = self._cam_border_corners[i]
+			b = self._cam_border_corners[(i+1)%4]
+
+			for x in xrange(a[0], b[0]+1):
+				for y in xrange(a[1], b[1]+1):
+					self.update( (x,y) )
+		"""
+
 		# draw rect for current screen
 		displayed_area = self.session.view.get_displayed_area()
 		minimap_corners_as_renderer_node = []
@@ -118,11 +138,26 @@ class Minimap(object):
 			if corner[1] < self.world.min_y:
 				corner[1] = self.world.min_y
 			corner = tuple(corner)
+
+			self._cam_border_corners.append(corner)
+
 			minimap_coords = self._get_rotated_coords( self._world_coord_to_minimap_coord(corner))
+			minimap_coords = minimap_coords[0] - self.location.left, \
+			               minimap_coords[1] - self.location.top
+			"""
 			minimap_corners_as_renderer_node.append( fife.GenericRendererNode( \
 			  fife.Point(*minimap_coords) ) )
+			"""
+			minimap_corners_as_renderer_node.append( fife.Point(*minimap_coords) )
+
+		img = self.minimap_image.image
 		for i in xrange(0, 4):
+			"""
 			self.renderer.addLine("minimap_b_cam_border"+self._id, minimap_corners_as_renderer_node[i], \
+			                 minimap_corners_as_renderer_node[ (i+1) % 4], *self.colors[self.cam_border])
+			"""
+			# TODO: draw on special surface/layer
+			img.drawLine(minimap_corners_as_renderer_node[i], \
 			                 minimap_corners_as_renderer_node[ (i+1) % 4], *self.colors[self.cam_border])
 
 	def update(self, tup):
@@ -226,6 +261,7 @@ class Minimap(object):
 				# _get_rotated_coords has been inlined here
 				rot_x, rot_y = self._rotate( (location_left + x, location_top + y), self._rotations)
 				img.putPixel(rot_x - location_left, rot_y - location_top, *color)
+				print 'draw to ', rot_x - location_left, rot_y - location_top
 
 
 	def _timed_update(self):
@@ -348,6 +384,9 @@ class _MinimapImage(object):
 	def _load_img(self):
 		self.img_id = self.imagepool.addResourceFromFile( self.image_file_path )
 		self.image = self.imagepool.getImage( self.img_id )
+
+	def get_dimensions(self):
+		return self.image.getWidth(), self.image.getHeight()
 
 	def reset(self):
 		"""Reset image to original image"""

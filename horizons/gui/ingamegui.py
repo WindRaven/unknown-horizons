@@ -85,9 +85,8 @@ class IngameGui(LivingObject):
 		minimap.position_technique = "right-20:top+4"
 		minimap.show()
 
-		minimap_rect = Rect.init_from_topleft_and_size(minimap.position[0]+77, 55, 120, 120)
-
-		self.minimap = Minimap(minimap_rect, self.session, \
+		minimap_pos = Point(minimap.position[0]+77, 55)
+		self.minimap = Minimap(minimap_pos, self.session, \
 		                       self.session.view.renderer['GenericRenderer'])
 		minimap.mapEvents({
 			'zoomIn' : self.session.view.zoom_in,

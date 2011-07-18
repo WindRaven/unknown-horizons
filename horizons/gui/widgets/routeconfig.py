@@ -20,9 +20,10 @@
 # ###################################################
 
 from horizons.util.gui import load_uh_widget
-from horizons.util import Callback
+from horizons.util import Callback, Rect
 from fife.extensions.pychan import widgets
 from horizons.gui.widgets.tooltip import TooltipButton
+from horizons.gui.widgets.minimap import Minimap
 
 import horizons.main
 
@@ -47,6 +48,7 @@ class RouteConfig(object):
 
 	def show(self):
 		self._gui.show()
+		self.minimap.draw()
 
 	def hide(self):
 		self._gui.hide()
@@ -373,7 +375,6 @@ class RouteConfig(object):
 		wait_at_load_box.marked = self.instance.route.wait_at_load
 		def toggle_wait_at_load():
 			self.instance.route.wait_at_load = not self.instance.route.wait_at_load
-			print 'set to', self.instance.route.wait_at_load
 		wait_at_load_box.capture(toggle_wait_at_load)
 
 		self._gui.mapEvents({
@@ -382,4 +383,17 @@ class RouteConfig(object):
 		  'start_route/mouseClicked' : self.toggle_route
 		  })
 		self._gui.position_technique = "automatic" # "center:center"
+
+
+		self._gui.resizeToContent()
+		self._gui.adaptLayout()
+		import pdb ; pdb.set_trace()
+
+		icon = self._gui.findChild(name="minimap")
+		#minimap_rect = Rect.init_from_topleft_and_size(p_t[0], p_t[1], 200, 200)
+
+		self.minimap = Minimap(icon, self.instance.session,
+		                       self.instance.session.view.renderer['GenericRenderer'],
+		                       "content/gui/images/a.png")
+		#self.minimap.draw()
 
