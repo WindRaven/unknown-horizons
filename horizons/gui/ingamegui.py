@@ -23,7 +23,7 @@ import horizons.main
 from fife.extensions import pychan
 
 from horizons.entities import Entities
-from horizons.util import livingProperty, LivingObject, PychanChildFinder, Rect
+from horizons.util import livingProperty, LivingObject, PychanChildFinder, Rect, Point
 from horizons.util.python import Callback
 from horizons.gui.mousetools import BuildingTool, SelectionTool
 from horizons.gui.tabs import TabWidget, BuildTab, DiplomacyTab, SelectMultiTab
