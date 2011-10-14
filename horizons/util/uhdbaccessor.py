@@ -21,9 +21,8 @@
 
 from random import randint
 
-from dbreader import DbReader
-
 from horizons.util import decorators
+from horizons.util.dbreader import DbReader
 from horizons.util.gui import get_res_icon
 
 ########################################################################
@@ -62,7 +61,6 @@ class UhDbAccessor(DbReader):
 			return self.cached_query(sql, id)[0][0]
 		except IndexError:
 			return None
-
 
 	def get_res_value(self, id):
 		"""Returns the resource's value
@@ -138,9 +136,28 @@ class UhDbAccessor(DbReader):
 	def get_building_class_data(self, building_class_id):
 		"""Returns data for class of a building class.
 		@param building_class_id: class of building, int
-		@return: tuple: (class_package, class_name)"""
-		sql = "SELECT class_package, class_type FROM data.building WHERE id = ?"
+		@return: tuple: (class_package, class_name)
+		"""
+		sql = "SELECT class_package, class_type FROM building WHERE id = ?"
 		return self.cached_query(sql, building_class_id)[0]
+
+	def get_building_level(self, building_class_id):
+		"""Returns settler_level of a building class.
+		@param building_class_id: class of building, int
+		@return: int settler_level
+		"""
+		sql = "SELECT settler_level FROM building WHERE id = ?"
+		return self.cached_query(sql, building_class_id)[0][0]
+
+	def get_building_tooltip(self, building_class_id):
+		"""Returns tooltip text of a building class.
+		ATTENTION: This text is automatically translated when loaded
+		already. DO NOT wrap the return value of this method in _()!
+		@param building_class_id: class of building, int
+		@return: string tooltip_text
+		"""
+		sql = "SELECT tooltip_text FROM building WHERE id = ?"
+		return self.cached_query(sql, building_class_id)[0][0]
 
 
 	def get_building_id_buttonname_settlerlvl(self):
@@ -148,6 +165,15 @@ class UhDbAccessor(DbReader):
 		return self.cached_query("SELECT id, button_name, settler_level \
 		                          FROM building \
 		                          WHERE button_name IS NOT NULL")
+
+	def get_related_building_ids(self, building_class_id):
+		"""Returns list of building ids related to building_class_id.
+		@param building_class_id: class of building, int
+		@return list of building class ids
+		"""
+		sql = "SELECT related_building FROM related_buildings WHERE building = ?"
+		return map(lambda x: x[0], self.cached_query(sql, building_class_id))
+
 
 	#
 	#
@@ -162,7 +188,7 @@ class UhDbAccessor(DbReader):
 		@param level: int level for which to return the production lines
 		@return: list of production lines"""
 		return self.cached_query("SELECT production_line \
-		                          FROM settler.settler_production_line \
+		                          FROM settler_production_line \
 		                          WHERE level = ?", level)
 
 	def get_settler_name(self, level):
@@ -180,11 +206,11 @@ class UhDbAccessor(DbReader):
 		                          WHERE level = ?", level)[0][0]
 
 	def get_settler_tax_income(self, level):
-		return self.cached_query("SELECT tax_income FROM settler.settler_level \
+		return self.cached_query("SELECT tax_income FROM settler_level \
 		                          WHERE level=?", level)[0][0]
 
 	def get_settler_inhabitants_max(self, level):
-		return self.cached_query("SELECT inhabitants_max FROM settler.settler_level \
+		return self.cached_query("SELECT inhabitants_max FROM settler_level \
 		                          WHERE level=?", level)[0][0]
 
 	def get_settler_inhabitants(self, building_id):
@@ -192,13 +218,14 @@ class UhDbAccessor(DbReader):
 		                         building_id)[0][0]
 
 	def get_settler_upgrade_material_prodline(self, level):
-		return self.cached_query("SELECT production_line FROM upgrade_material \
-		                          WHERE level = ?", level)[0][0]
+		db_result = self.cached_query("SELECT production_line FROM upgrade_material \
+		                          WHERE level = ?", level)
+		return db_result[0][0] if db_result else None
 
 	@decorators.cachedmethod
 	def get_provided_resources(self, object_class):
 		"""Returns resources that are provided by a building- or unitclass as set"""
-		db_data = self("SELECT resource FROM balance.production WHERE amount > 0 AND \
+		db_data = self("SELECT resource FROM production WHERE amount > 0 AND \
 		production_line IN (SELECT id FROM production_line WHERE object_id = ? )", object_class)
 		return set(map(lambda x: x[0], db_data))
 
@@ -220,4 +247,15 @@ class UhDbAccessor(DbReader):
 	def get_translucent_buildings(self):
 		"""Returns building types that should become translucent on demand"""
 		# use set because of quick contains check
-		return frozenset( i[0] for i in self("SELECT type from translucent_buildings") )
+		return frozenset( i[0] for i in self("SELECT type FROM translucent_buildings") )
+
+
+	# Weapon table
+
+	def get_weapon_stackable(self, weapon_id):
+		"""Returns True if the weapon is stackable, False otherwise."""
+		return self.cached_query("SELECT stackable FROM weapon WHERE id = ?", weapon_id)[0][0]
+
+	def get_weapon_attack_radius(self, weapon_id):
+		"""Returns weapon's attack radius modifier."""
+		return self.cached_query("SELECT attack_radius FROM weapon WHERE id = ?", weapon_id)[0][0]

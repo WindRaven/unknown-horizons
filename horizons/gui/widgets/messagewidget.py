@@ -29,6 +29,7 @@ from horizons.extscheduler import ExtScheduler
 from horizons.util import LivingObject, Callback
 from horizons.util.gui import load_uh_widget
 from horizons.ambientsound import AmbientSound
+from horizons.i18n.voice import get_speech_file
 
 class MessageWidget(LivingObject):
 	"""Class that organises the messages in the top right of the screen.
@@ -40,7 +41,7 @@ class MessageWidget(LivingObject):
 	MAX_MESSAGES = 5
 
 	def __init__(self, session, x, y):
-		super(LivingObject, self).__init__()
+		super(MessageWidget, self).__init__()
 		self.session = session
 		self.x_pos, self.y_pos = x, y
 		self.active_messages = [] # for displayed messages
@@ -58,19 +59,20 @@ class MessageWidget(LivingObject):
 		ExtScheduler().add_new_object(self.tick, self, loops=-1)
 		# buttons to toggle through messages
 
-	def add(self, x, y, id, message_dict=None, play_sound = True):
+	def add(self, x, y, string_id, message_dict=None, sound_file=True):
 		"""Adds a message to the MessageWidget.
 		@param x, y: int coordinates where the action took place.
 		@param id: message id string, needed to retrieve the message from the database.
 		@param message_dict: template dict with the neccassary values. ( e.g.: {'player': 'Arthus'}
+		@params sound_file if not set play default message speech for string_id
+						if set for False do not play sound
+						if set sound file path play this sound, for example some event sound
 		"""
-		# play a message sound, if one is specified in the database
-		sound = None
-		if play_sound:
-			sound = horizons.main.db("SELECT data.speech.file FROM data.speech LEFT JOIN data.message \
-			ON data.speech.group_id=data.message.speech_group_id WHERE data.message.id_string=? ORDER BY random() LIMIT 1",id)
-			sound = sound[0][0] if len(sound) > 0 else None
-		self._add_message(Message(x, y, id, self.current_tick, message_dict=message_dict), sound)
+		sound = {
+							True: get_speech_file(string_id),
+							False: None
+							}.get(sound_file, sound_file)
+		self._add_message(Message(x, y, string_id, self.current_tick, message_dict=message_dict), sound)
 
 	def add_custom(self, x, y, messagetext, visible_for=40, sound=None, icon_id=1):
 		self._add_message( Message(x, y, None, self.current_tick, display=visible_for, message=messagetext, icon_id=icon_id), sound)
@@ -189,13 +191,13 @@ class Message(object):
 		self.id = id
 		self.read = read
 		self.created = created
-		self.display = display if display is not None else int(horizons.main.db('SELECT visible_for from data.message WHERE id_string=?', id).rows[0][0])
-		icon = icon_id if icon_id else horizons.main.db('SELECT icon FROM data.message where id_string = ?', id)[0][0]
-		self.up_image, self.down_image, self.hover_image = horizons.main.db('SELECT up_image, down_image, hover_image from data.message_icon WHERE color=? AND icon_id = ?', 1, icon)[0]
+		self.display = display if display is not None else int(horizons.main.db('SELECT visible_for FROM message WHERE id_string=?', id).rows[0][0])
+		icon = icon_id if icon_id else horizons.main.db('SELECT icon FROM message where id_string = ?', id)[0][0]
+		self.up_image, self.down_image, self.hover_image = horizons.main.db('SELECT up_image, down_image, hover_image FROM message_icon WHERE color=? AND icon_id = ?', 1, icon)[0]
 		if message is not None:
 			assert isinstance(message, str) or isinstance(message, unicode)
 			self.message = message
 		else:
-			text = horizons.main.db('SELECT text from data.message WHERE id_string=?', id)[0][0]
+			text = horizons.main.db('SELECT text FROM message WHERE id_string=?', id)[0][0]
 			self.message = Template(_(text)).safe_substitute( \
 			  message_dict if message_dict is not None else {})

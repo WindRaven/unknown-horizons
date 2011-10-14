@@ -20,21 +20,24 @@
 # 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 # ###################################################
 
+import ctypes
 import platform
 import os.path
 import re
 import locale
 
-from ext.enum import Enum
+from horizons.ext.enum import Enum
 
-"""This file keeps track of some constants, that have to be used in the code.
-NOTE: Using constants is generally a bad style, so avoid where possible."""
+"""This file keeps track of the constants that are used in Unknown Horizons.
+NOTE: Using magic constants in code is generally a bad style, so avoid where
+possible and instead import the proper classes of this file.
+"""
 
 ##Versioning
 class VERSION:
 	def _set_version():
 		"""Function gets latest revision of the working copy.
-		It only works in git repositories, and is acctually a hack.
+		It only works in git repositories, and is actually a hack.
 		"""
 		try:
 			from run_uh import find_uh_position
@@ -56,12 +59,12 @@ class VERSION:
 	RELEASE_NAME    = "Unknown Horizons Version %s"
 	RELEASE_VERSION = _set_version()
 
-	# change to sth like this for release
-	# RELEASE_NAME = _("Unknown Horizons Alpha %s")
-	# RELEASE_VERSION = u'2011.2'
+	# change to sth like this for release, please don't add %s to the first string
+	#RELEASE_NAME = _("Unknown Horizons") + unicode(" %s")
+	#RELEASE_VERSION = u'2011.3'
 
 	## +=1 this if you changed the savegame "api"
-	SAVEGAMEREVISION= 16
+	SAVEGAMEREVISION= 43
 
 	@staticmethod
 	def string():
@@ -72,18 +75,25 @@ class UNITS:
 	# ./development/print_db_data.py unit
 	PLAYER_SHIP_CLASS          = 1000001
 	BUILDING_COLLECTOR_CLASS   = 1000002
+	FISHER_BOAT                = 1000004
 	PIRATE_SHIP_CLASS          = 1000005
 	TRADER_SHIP_CLASS          = 1000006
 	WILD_ANIMAL_CLASS          = 1000013
+	USABLE_FISHER_BOAT         = 1000016
+	FRIGATE                    = 1000020
 
 	DIFFERENCE_BUILDING_UNIT_ID = 1000000
+
+class WEAPONS:
+	CANNON = 40
+	DAGGER = 41
 
 class BUILDINGS:
 	# ./development/print_db_data.py building
 	BRANCH_OFFICE_CLASS = 1
 	STORAGE_CLASS = 2
 	RESIDENTIAL_CLASS = 3
-	MARKET_PLACE_CLASS = 4
+	MAIN_SQUARE_CLASS = 4
 	PAVILION_CLASS = 5
 	SIGNAL_FIRE_CLASS = 6
 	WEAVER_CLASS = 7
@@ -150,6 +160,7 @@ class RES:
 	RAW_CLAY_ID = 20
 	CLAY_ID = 21
 	LIQUOR_ID = 22
+	RAW_IRON_ID = 24
 	GET_TOGETHER_ID = 27
 	FISH_ID = 28
 
@@ -203,7 +214,10 @@ class GROUND:
 
 class GAME_SPEED:
 	TICKS_PER_SECOND = 16
-	TICK_RATES = [16, 32, 48, 64]
+	TICK_RATES = [8, 16, 32, 48, 64, 96, 128, 176] #starting at 0.5x with max of 11x
+
+class COLORS:
+	BLACK = 9
 
 class VIEW:
 	ZOOM_MAX = 1
@@ -220,9 +234,13 @@ class PRODUCTION:
 	# ./development/print_db_data.py lines
 	STATES = Enum('none', 'waiting_for_res', 'inventory_full', 'producing', 'paused', 'done')
 	# NOTE: 'done' is only for SingleUseProductions
-	# NOTE: 'none' is not used by an acctual production, just for a producer
-	CAPACITY_UTILISATION_CONSIDERED_SECONDS = 60 # seconds, that count for cap. util. calculation
+	# NOTE: 'none' is not used by an actual production, just for a producer
+	STATISTICAL_WINDOW = 1000 # How many latest ticks are relevant for keeping track of how busy a production is
 
+class PRODUCTIONLINES:
+	HUKER = 15
+	FISHING_BOAT = None # will get added later
+	FRIGATE = 58
 
 ## GAME-RELATED, BALANCING VALUES
 class GAME:
@@ -230,6 +248,7 @@ class GAME:
 	# payed in this interval).
 
 	WORLD_WORLDID = 0 # worldid of World object
+	MAX_TICKS = None # exit after on tick MAX_TICKS (disabled by setting to None)
 
 # Messagewidget and Logbook
 class MESSAGES:
@@ -237,7 +256,12 @@ class MESSAGES:
 	CUSTOM_MSG_VISIBLE_FOR = 90 # after this time the msg gets removed from screen
 	LOGBOOK_DEFAULT_DELAY = 4 # delay between condition fulfilled and logbook popping up
 
-# AI
+# AI values read from the command line; use the values below unless overridden by the CLI or the GUI
+class AI:
+	HIGHLIGHT_PLANS = False # whether to show the AI players' plans on the map
+	AI_PLAYERS = 1 # number of AI players in a game started from the command line
+	HUMAN_AI = False # whether the human player is controlled by the AI
+
 class TRADER: # check resource values: ./development/print_db_data.py res
 	PRICE_MODIFIER_BUY = 0.9  # buy for x times the resource value
 	PRICE_MODIFIER_SELL = 1.5 # sell for x times the resource value
@@ -250,6 +274,9 @@ class TRADER: # check resource values: ./development/print_db_data.py res
 
 # Taxes and Restrictions
 class SETTLER:
+	SAILOR_LEVEL = 0
+	PIONEER_LEVEL = 1
+	SETTLER_LEVEL = 2
 	CURRENT_MAX_INCR = 2 # counting starts at 0!
 	TAX_SETTINGS_MIN = 0.5
 	TAX_SETTINGS_MAX = 1.5
@@ -267,6 +294,7 @@ class WILD_ANIMAL:
 class COLLECTORS:
 	DEFAULT_WORK_DURATION = 16 # how many ticks collectors pretend to work at target
 	DEFAULT_WAIT_TICKS = 32 # how long collectors wait before again looking for a job
+	STATISTICAL_WINDOW = 1000 # How many latest ticks are relevant for calculating how busy a collector is
 
 class STORAGE:
 	DEFAULT_STORAGE_SIZE = 30 # Our usual inventorys are 30 tons big
@@ -286,12 +314,18 @@ class LAYERS:
 	NUM = 4 # number of layers
 
 ## PATHS
-# workaround, so it can be used to create paths withing PATHS
+# workaround, so it can be used to create paths within PATHS
 
 if platform.system() != "Windows":
 	_user_dir = os.path.join(os.path.expanduser('~'), '.unknown-horizons')
 else:
-	_user_dir = os.path.join(os.environ['APPDATA'], "unknown-horizons")
+	dll = ctypes.windll.shell32
+	buf = ctypes.create_string_buffer(300)
+	dll.SHGetSpecialFolderPathA(None, buf, 0x0005, False) # get the My Documents folder
+	my_games = os.path.join(buf.value, 'My Games')
+	if not os.path.exists(my_games):
+		os.makedirs(my_games)
+	_user_dir = os.path.join(my_games, 'unknown-horizons')
 _user_dir = unicode(_user_dir, locale.getpreferredencoding()) # this makes umlaut-paths work on win
 
 class PATHS:
@@ -305,6 +339,21 @@ class PATHS:
 	ACTION_SETS_DIRECTORY = os.path.join("content", "gfx")
 	TILE_SETS_DIRECTORY = os.path.join("content", "gfx", "base")
 	SAVEGAME_TEMPLATE = os.path.join("content", "savegame_template.sqlite")
+	ACTION_SETS_JSON_FILE = os.path.join("content", "actionsets.json")
+
+	CONFIG_TEMPLATE_FILE = os.path.join("content", "settings-template.xml")
+
+	DB_FILES = tuple(os.path.join("content", i) for i in \
+	                 ("game.sql", "balance.sql") )
+	#voice paths
+	VOICE_DIR = os.path.join("content", "audio", "voice")
+
+class PLAYER:
+	STATS_UPDATE_FREQUENCY = 42
+
+## SINGLEPLAYER
+class SINGLEPLAYER:
+	SEED = None
 
 ## MULTIPLAYER
 class MULTIPLAYER:
@@ -312,9 +361,8 @@ class MULTIPLAYER:
 
 class NETWORK:
 	SERVER_ADDRESS = "master.unknown-horizons.org"
-	SERVER_PORT = 2001
+	SERVER_PORT = 2002
 	CLIENT_ADDRESS = None
-
 
 ## TRANSLATIONS
 class _LanguageNameDict(dict):

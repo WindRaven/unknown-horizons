@@ -19,12 +19,15 @@
 # 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 # ###################################################
 
+from collections import deque
+
 from horizons.util import WorldObject, RadiusRect, Callback, decorators
 from horizons.world.pathfinding.pather import RoadPather, BuildingCollectorPather
 from horizons.constants import COLLECTORS
 from horizons.scheduler import Scheduler
+from horizons.world.units.movingobject import MoveNotPossible
+from horizons.world.units.collectors.collector import Collector, JobList
 
-from collector import Collector, JobList
 
 
 class BuildingCollector(Collector):
@@ -43,6 +46,8 @@ class BuildingCollector(Collector):
 		kwargs['x'] = home_building.position.origin.x
 		kwargs['y'] = home_building.position.origin.y
 		super(BuildingCollector, self).__init__(**kwargs)
+		self._job_history = deque()
+		self._creation_tick = Scheduler().cur_tick + 1 # adjusted for the initial delay
 		self.__init(home_building)
 
 	def __init(self, home_building):
@@ -52,16 +57,27 @@ class BuildingCollector(Collector):
 
 	def save(self, db):
 		super(BuildingCollector, self).save(db)
-		# save home_building
-		db("INSERT INTO building_collector(rowid, home_building) VALUES(?, ?)",
-		   self.worldid, self.home_building.worldid if self.home_building is not None else None)
+		self._clean_job_history_log()
+		current_tick = Scheduler().cur_tick
+
+		# save home_building and creation tick
+		translated_creation_tick = self._creation_tick - current_tick + 1 #  pre-translate the tick number for the loading process
+		db("INSERT INTO building_collector(rowid, home_building, creation_tick) VALUES(?, ?, ?)", \
+			 self.worldid, self.home_building.worldid if self.home_building is not None else None, translated_creation_tick)
+
+		# save job history
+		for tick, utilisation in self._job_history:
+				# pre-translate the tick number for the loading process
+			translated_tick = tick - current_tick + 1
+			db("INSERT INTO building_collector_job_history(collector, tick, utilisation) VALUES(?, ?, ?)", \
+				 self.worldid, translated_tick, utilisation)
 
 	def load(self, db, worldid):
 		# we have to call __init here before super().load, because a superclass uses a method,
 		# which is overwritten here, that uses a member, which has to be initialised via __init.
 
 		# load home_building
-		home_building_id = db.get_building_collectors_home(worldid)
+		home_building_id, self._creation_tick = db.get_building_collectors_data(worldid)
 		self.__init(None if home_building_id is None else WorldObject.get_object_by_id(home_building_id))
 
 		super(BuildingCollector, self).load(db, worldid)
@@ -72,6 +88,10 @@ class BuildingCollector(Collector):
 			#       perhaps a new unit should be created, because a fisher ship without a
 			#       fisher basically isn't a buildingcollector anymore.
 
+		# load job search failures
+		# the tick values were translated to assume that it is currently tick 0
+		assert Scheduler().cur_tick == 0
+		self._job_history = db.get_building_collector_job_history(worldid)
 
 	def register_at_home_building(self, unregister = False):
 		"""Creates reference for self at home building (only hard reference except for
@@ -138,6 +158,30 @@ class BuildingCollector(Collector):
 
 		return self.get_best_possible_job(jobs)
 
+	def search_job(self):
+		self._clean_job_history_log()
+		super(BuildingCollector, self).search_job()
+
+	def _clean_job_history_log(self):
+		""" remove too old entries """
+		first_relevant_tick = Scheduler().cur_tick - self.get_utilisation_history_length()
+		while len(self._job_history) > 1 and self._job_history[1][0] < first_relevant_tick:
+			self._job_history.popleft()
+
+	def handle_no_possible_job(self):
+		super(BuildingCollector, self).handle_no_possible_job()
+		# only append a new element if it is different from the last one
+		if not self._job_history or abs(self._job_history[-1][1]) > 1e-9:
+			self._job_history.append((Scheduler().cur_tick, 0))
+
+	def begin_current_job(self, job_location = None):
+		super(BuildingCollector, self).begin_current_job(job_location)
+		max_amount = min(self.inventory.get_limit(self.job.res), self.job.object.inventory.get_limit(self.job.res))
+		utilisation = self.job.amount / float(max_amount)
+		# only append a new element if it is different from the last one
+		if not self._job_history or abs(self._job_history[-1][1] - utilisation) > 1e-9:
+			self._job_history.append((Scheduler().cur_tick, utilisation))
+
 	def finish_working(self, collector_already_home=False):
 		"""Called when collector has stayed at the target for a while.
 		Picks up the resources and sends collector home.
@@ -181,13 +225,13 @@ class BuildingCollector(Collector):
 		@param res: optional, only search for buildings that provide res"""
 		reach = RadiusRect(self.home_building.position, self.home_building.radius)
 		return self.home_building.island.get_providers_in_range(reach, reslist=reslist, \
-		                                                        player=self.owner)
+								                                            player=self.owner)
 
 	def handle_path_home_blocked(self):
 		"""Called when we get blocked while trying to move to the job location.
 		The default action is to resume movement in a few seconds."""
 		self.log.debug("%s: got blocked while moving home, trying again in %s ticks.", \
-			self, COLLECTORS.DEFAULT_WAIT_TICKS)
+								   self, COLLECTORS.DEFAULT_WAIT_TICKS)
 		Scheduler().add_new_object(self.resume_movement, self, COLLECTORS.DEFAULT_WAIT_TICKS)
 
 	def move_home(self, callback=None, action='move_full'):
@@ -199,16 +243,15 @@ class BuildingCollector(Collector):
 			Scheduler().add_new_object(callback, self, run_in=0)
 		else:
 			# actually move home
-
-			# only reuse old path if it leads home. This is not provided if the path had to be
-			# recalculated on the way to the target due to a blockade.
-			if self.home_building.position.contains( self.path.get_move_source() ):
-				self.move_back(callback=callback, destination_in_building=True, action=action, \
-				               blocked_callback=self.handle_path_home_blocked)
-			else:
+			try:
 				self.move(self.home_building, callback=callback, destination_in_building=True, action=action, \
 				          blocked_callback=self.handle_path_home_blocked)
-			self.state = self.states.moving_home
+				self.state = self.states.moving_home
+			except MoveNotPossible:
+				# we are in trouble.
+				# the collector went somewhere, now there is no way for them to move home.
+				# this is an unsolved problem also in reality, so we are forced to use an unconventional solution.
+				self.teleport(self.home_building, callback=callback, destination_in_building=True)
 
 	def cancel(self, continue_action = None):
 		"""Cancels current job and moves back home"""
@@ -216,6 +259,41 @@ class BuildingCollector(Collector):
 		if continue_action is None:
 			continue_action = Callback(self.move_home, callback=self.end_job, action='move')
 		super(BuildingCollector, self).cancel(continue_action=continue_action)
+
+	def get_utilisation_history_length(self):
+		return min(COLLECTORS.STATISTICAL_WINDOW, Scheduler().cur_tick - self._creation_tick)
+
+	def get_utilisation(self):
+		"""
+		Returns the utilisation of the collector.
+		It is calculated by observing how full the inventory of the collector is or
+		how full it would be if it had reached the place where it picks up the resources.
+		"""
+
+		history_length = self.get_utilisation_history_length()
+		if history_length <= 0:
+			return 0
+
+		current_tick = Scheduler().cur_tick
+		first_relevant_tick = current_tick - history_length
+
+		self._clean_job_history_log()
+		num_entries = len(self._job_history)
+		total_utilisation = 0
+		for i in xrange(num_entries):
+			tick = self._job_history[i][0]
+			if tick >= current_tick:
+				break
+
+			next_tick = min(self._job_history[i + 1][0], current_tick) if i + 1 < num_entries else current_tick
+			relevant_ticks = next_tick - tick
+			if tick < first_relevant_tick:
+				# the beginning is not relevant
+				relevant_ticks -= first_relevant_tick - tick
+			total_utilisation += relevant_ticks * self._job_history[i][1]
+
+		#assert -1e-7 < total_utilisation / float(history_length) < 1 + 1e-7
+		return total_utilisation / float(history_length)
 
 class StorageCollector(BuildingCollector):
 	""" Same as BuildingCollector, except that it moves on roads.

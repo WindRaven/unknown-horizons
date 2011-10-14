@@ -31,7 +31,7 @@ import horizons.main
 from horizons.session import Session
 from horizons.manager import SPManager
 from horizons.extscheduler import ExtScheduler
-from horizons.constants import PATHS, GAME_SPEED
+from horizons.constants import PATHS, GAME_SPEED, SINGLEPLAYER
 from horizons.savegamemanager import SavegameManager
 from horizons.util.dbreader import DbReader
 from horizons.timer import Timer
@@ -44,7 +44,7 @@ class SPSession(Session):
 		return SPManager(self)
 
 	def create_rng(self, seed=None):
-		return random.Random(seed)
+		return random.Random(seed if seed is not None else SINGLEPLAYER.SEED)
 
 	def create_timer(self):
 		return Timer(freeze_protection=True)
@@ -54,7 +54,7 @@ class SPSession(Session):
 		# single player games start right away
 		self.start()
 
-	def speed_set(self, ticks):
+	def speed_set(self, ticks, suggestion=False):
 		"""Set game speed to ticks ticks per second"""
 		old = self.timer.ticks_per_second
 		self.timer.ticks_per_second = ticks
@@ -132,7 +132,7 @@ class SPSession(Session):
 			self.gui.show_popup(_("No quicksaves found"), _("You need to quicksave before you can quickload."))
 			return
 		files.sort()
-		horizons.main.load_game(files[-1])
+		horizons.main.load_game(savegame=files[-1])
 
 	def save(self, savegamename=None):
 		"""Saves a game

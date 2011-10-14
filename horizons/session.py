@@ -26,6 +26,7 @@ import json
 
 import horizons.main
 
+from horizons.ai.aiplayer import AIPlayer
 from horizons.gui.ingamegui import IngameGui
 from horizons.gui.mousetools import SelectionTool
 from horizons.gui.keylisteners import IngameKeyListener
@@ -33,6 +34,7 @@ from horizons.gui.mousetools import TearingTool
 from horizons.scheduler import Scheduler
 from horizons.extscheduler import ExtScheduler
 from horizons.view import View
+from horizons.gui import Gui
 from horizons.world import World
 from horizons.entities import Entities
 from horizons.util import WorldObject, NamedObject, LivingObject, livingProperty, SavegameAccessor
@@ -74,6 +76,7 @@ class Session(LivingObject):
 
 	def __init__(self, gui, db, rng_seed=None):
 		super(Session, self).__init__()
+		assert isinstance(gui, Gui)
 		self.log.debug("Initing session")
 		self.gui = gui # main gui, not ingame gui
 		self.db = db # main db for game data (game.sqlite)
@@ -83,13 +86,14 @@ class Session(LivingObject):
 
 		WorldObject.reset()
 		NamedObject.reset()
+		AIPlayer.clear_caches()
 
 		#game
 		self.random = self.create_rng(rng_seed)
 		self.timer = self.create_timer()
 		Scheduler.create_instance(self.timer)
 		self.manager = self.create_manager()
-		self.view = View(self, (15, 15))
+		self.view = View(self)
 		Entities.load(self.db)
 		self.scenario_eventhandler = ScenarioEventHandler(self) # dummy handler with no events
 		self.campaign = {}
@@ -98,13 +102,14 @@ class Session(LivingObject):
 		self.gui.session = self
 		self.ingame_gui = IngameGui(self, self.gui)
 		self.keylistener = IngameKeyListener(self)
+		self.coordinates_tooltip = None
 		self.display_speed()
 
 		self.selected_instances = set()
 		self.selection_groups = [set()] * 10 # List of sets that holds the player assigned unit groups.
 
 	def start(self):
-		"""Acctually starts the game."""
+		"""Actually starts the game."""
 		self.timer.activate()
 
 	def create_manager(self):
@@ -163,17 +168,20 @@ class Session(LivingObject):
 	def save(self, savegame=None):
 		raise NotImplementedError
 
-	def load(self, savegame, players, is_scenario=False, campaign=None):
+	def load(self, savegame, players, trader_enabled, pirate_enabled, natural_resource_multiplier, is_scenario=False, campaign=None):
 		"""Loads a map.
 		@param savegame: path to the savegame database.
-		@param players: iterable of dictionaries containing id, name, color and local
+		@param players: iterable of dictionaries containing id, name, color, local, ai, and difficulty
 		@param is_scenario: Bool whether the loaded map is a scenario or not
 		"""
 		if is_scenario:
 			# savegame is a yaml file, that contains reference to actual map file
 			self.scenario_eventhandler = ScenarioEventHandler(self, savegame)
-			savegame = os.path.join(SavegameManager.maps_dir, \
-			                        self.scenario_eventhandler.get_map_file())
+			# scenario maps can be normal maps or scenario maps:
+			map_filename = self.scenario_eventhandler.get_map_file()
+			savegame = os.path.join(SavegameManager.scenario_maps_dir, map_filename)
+			if not os.path.exists(savegame):
+				savegame = os.path.join(SavegameManager.maps_dir, map_filename)
 		self.campaign = {} if not campaign else campaign
 
 		self.log.debug("Session: Loading from %s", savegame)
@@ -202,14 +210,15 @@ class Session(LivingObject):
 		if not self.is_game_loaded():
 			# NOTE: this must be sorted before iteration, cause there is no defined order for
 			#       iterating a dict, and it must happen in the same order for mp games.
-			for i in sorted(players):
-				self.world.setup_player(i['id'], i['name'], i['color'], i['local'])
-			center = self.world.init_new_world()
+			for i in sorted(players, lambda p1, p2: cmp(p1['id'], p2['id'])):
+				self.world.setup_player(i['id'], i['name'], i['color'], i['local'], i['ai'], i['difficulty'])
+			center = self.world.init_new_world(trader_enabled, pirate_enabled, natural_resource_multiplier)
 			self.view.center(center[0], center[1])
 		else:
 			# try to load scenario data
 			self.scenario_eventhandler.load(savegame_db)
 		self.manager.load(savegame_db) # load the manager (there might me old scheduled ticks).
+		self.world.init_fish_indexer() # now the fish should exist
 		self.ingame_gui.load(savegame_db) # load the old gui positions and stuff
 
 		for instance_id in savegame_db("SELECT id FROM selected WHERE `group` IS NULL"): # Set old selected instance
@@ -222,7 +231,9 @@ class Session(LivingObject):
 
 		# cursor has to be inited last, else player interacts with a not inited world with it.
 		self.cursor = SelectionTool(self)
-		self.cursor.apply_select() # Set cursor correctly, menus might need to be opened.
+		# Set cursor correctly, menus might need to be opened.
+		# Open menus later, they may need unit data not yet inited
+		self.cursor.apply_select()
 
 		assert hasattr(self.world, "player"), 'Error: there is no human player'
 		"""
@@ -231,20 +242,34 @@ class Session(LivingObject):
 		(horizons/world/__init__.py). It's where the magic happens and all buildings and units are loaded.
 		"""
 
-	def speed_set(self, ticks):
+	def speed_set(self, ticks, suggestion=False):
 		"""Set game speed to ticks ticks per second"""
 		raise NotImplementedError
 
 	def display_speed(self):
 		text = u''
+		up_icon = self.ingame_gui.widgets['minimap'].findChild(name='speedUp')
+		down_icon = self.ingame_gui.widgets['minimap'].findChild(name='speedDown')
 		tps = self.timer.ticks_per_second
 		if tps == 0: # pause
 			text = u'0x'
-		elif tps == GAME_SPEED.TICKS_PER_SECOND: # normal speed, 1x
-			pass # display nothing
+			up_icon.set_inactive()
+			down_icon.set_inactive()
 		else:
-			text = unicode(tps/GAME_SPEED.TICKS_PER_SECOND) + u'x' # 2x, 4x, ...
+			if tps != GAME_SPEED.TICKS_PER_SECOND:
+				text = unicode("%1gx" % (tps * 1.0/GAME_SPEED.TICKS_PER_SECOND))
+				#%1g: displays 0.5x, but 2x instead of 2.0x
+			index = GAME_SPEED.TICK_RATES.index(tps)
+			if index + 1 >= len(GAME_SPEED.TICK_RATES):
+				up_icon.set_inactive()
+			else:
+				up_icon.set_active()
+			if index > 0:
+				down_icon.set_active()
+			else:
+				down_icon.set_inactive()
 		self.ingame_gui.display_game_speed(text)
+
 
 	def speed_up(self):
 		if self.speed_is_paused():
@@ -271,25 +296,25 @@ class Session(LivingObject):
 	_pause_stack = 0 # this saves the level of pausing
 	# e.g. if two dialogs are displayed, that pause the game,
 	# unpause needs to be called twice to unpause the game. cf. #876
-	def speed_pause(self):
+	def speed_pause(self, suggestion=False):
 		self.log.debug("Session: Pausing")
 		self._pause_stack += 1
 		if not self.speed_is_paused():
 			self.paused_ticks_per_second = self.timer.ticks_per_second
-			self.speed_set(0)
+			self.speed_set(0, suggestion)
 
-	def speed_unpause(self):
+	def speed_unpause(self, suggestion=False):
 		self.log.debug("Session: Unpausing")
 		if self.speed_is_paused():
 			self._pause_stack -= 1
 			if self._pause_stack == 0:
 				self.speed_set(self.paused_ticks_per_second)
 
-	def speed_toggle_pause(self):
+	def speed_toggle_pause(self, suggestion=False):
 		if self.speed_is_paused():
-			self.speed_unpause()
+			self.speed_unpause(suggestion)
 		else:
-			self.speed_pause()
+			self.speed_pause(suggestion)
 
 	def speed_is_paused(self):
 		return (self.timer.ticks_per_second == 0)

@@ -19,31 +19,41 @@
 # 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 # ###################################################
 
-from time import strftime
 import logging
 import textwrap
-
-import horizons.main
 
 from horizons.gui.modules import PlayerDataSelection
 from horizons.savegamemanager import SavegameManager
 from horizons.network.networkinterface import MPGame
 from horizons.constants import MULTIPLAYER
 from horizons.network.networkinterface import NetworkInterface
-from horizons.util import Callback
-from horizons.network import CommandError
-from horizons.util.gui import adjust_widget_black_background
+from horizons.network import find_enet_module
 
+enet = find_enet_module()
 
 class MultiplayerMenu(object):
 	log = logging.getLogger("networkinterface")
 
 	def show_multi(self):
 		"""Shows main multiplayer menu"""
-		if NetworkInterface() is None:
-			self.show_popup(_("Networking isn't initialised"), \
-			           _("Networking isn't initialised, probably because of configuration issues. Check your settings!"))
+		if enet == None:
+			headline = _(u"Unable to find pyenet")
+			descr = _(u"The multiplayer feature requires the library \"pyenet\", which couldn't be found on your system.")
+			advice = _(u"Linux users: Try to install pyenet through your package manager.") + "\n" + \
+						 _(u"Windows users: There is currently no reasonable support for Windows.")
+			self.show_error_popup(headline, descr, advice)
 			return
+
+		if NetworkInterface() is None:
+			try:
+				NetworkInterface.create_instance()
+			except RuntimeError, e:
+				headline = _(u"Failed to initialize networking.")
+				descr = _(u"Networking couldn't be initialised with the current configuration.")
+				advice = _(u"Check the data you entered in the Network section in the settings dialogue.")
+				self.show_error_popup(headline, descr, advice, unicode(e))
+				return
+
 		if not NetworkInterface().isconnected():
 			connected = self.__connect_to_server()
 			if not connected:
@@ -58,12 +68,10 @@ class MultiplayerMenu(object):
 			'join'    : self.__join_game,
 			'create'  : self.__show_create_game,
 			'refresh' : self.__refresh,
-		    'apply_new_nickname' : self.__apply_new_nickname
+			'apply_new_nickname' : self.__apply_new_nickname
 		}
 		self.widgets.reload('multiplayermenu')
 		self._switch_current_widget('multiplayermenu', center=True, event_map=event_map, hide_old=True)
-
-		adjust_widget_black_background(self.widgets['multiplayermenu'])
 
 		refresh_worked = self.__refresh()
 		if not refresh_worked:
@@ -78,41 +86,45 @@ class MultiplayerMenu(object):
 		self.on_escape = event_map['cancel']
 
 	def __connect_to_server(self):
-			NetworkInterface().register_chat_callback(self.__receive_chat_message)
-			NetworkInterface().register_game_details_changed_callback(self.__update_game_details)
-			NetworkInterface().register_game_starts_callback(self.__start_game)
-			NetworkInterface().register_game_ready_callback(self.__game_ready)
-			NetworkInterface().register_error_callback(self.__on_error)
+		NetworkInterface().register_chat_callback(self.__receive_chat_message)
+		NetworkInterface().register_game_details_changed_callback(self.__update_game_details)
+		NetworkInterface().register_game_prepare_callback(self.__prepare_game)
+		NetworkInterface().register_game_starts_callback(self.__start_game)
+		NetworkInterface().register_error_callback(self.__on_error)
+		NetworkInterface().register_player_joined_callback(self.__player_joined)
+		NetworkInterface().register_player_left_callback(self.__player_left)
+		NetworkInterface().register_player_changed_name_callback(self.__player_changed_name)
 
-			try:
-				NetworkInterface().connect()
-			except Exception, err:
-				self.show_popup(_("Network Error"), _("Could not connect to master server. Please check your Internet connection. If it is fine, it means our master server is temporarily down.\nDetails: %s") % str(err))
-				return False
-			return True
-
+		try:
+			NetworkInterface().connect()
+		except Exception, err:
+			self.show_popup(_("Network Error"), _("Could not connect to master server. Please check your Internet connection. If it is fine, it means our master server is temporarily down.\nDetails: %s") % str(err))
+			return False
+		return True
 
 	def __apply_new_nickname(self):
 		new_nick = self.current.playerdata.get_player_name()
-		horizons.main.fife.set_uh_setting("Nickname", new_nick)
-		horizons.main.fife.save_settings()
-		try:
-			NetworkInterface().network_data_changed(connect=True)
-		except Exception, err:
-			self.show_popup(_("Network Error"), _("Could not connect to master server. Please check your Internet connection. If it is fine, it means our master server is temporarily down.\nDetails: %s") % str(err))
-			return
-		self.__refresh()
+		NetworkInterface().change_name(new_nick)
 
-	def __on_error(self, exception):
-		if self.session is not None:
+	def __on_error(self, exception, fatal=True):
+		"""Error callback"""
+		if fatal and self.session is not None:
 			self.session.timer.ticks_per_second = 0
-		self.show_popup( _("Network Error"), \
-		                 _("Something went wrong with the network: ") + \
-		                 str(exception) )
-		self.quit_session(force=True)
+		if self.dialog_executed:
+			# another message dialog is being executed, and we were called by that action.
+			# if we now trigger another message dialog, we will probably loop.
+			return
+		if not fatal:
+			self.show_popup(_("Error"), unicode(exception))
+		else:
+			self.show_popup(_("Fatal Network Error"), \
+		                 _("Something went wrong with the network:") + u'\n' + \
+		                 unicode(exception) )
+			self.quit_session(force=True)
 
 	def __cancel(self):
-		NetworkInterface().disconnect()
+		if NetworkInterface().isconnected():
+			NetworkInterface().disconnect()
 		self.show_main()
 
 	def __refresh(self):
@@ -146,7 +158,7 @@ class MultiplayerMenu(object):
 			game = self.__get_selected_game()
 		self.current.findChild(name="game_map").text = _("Map: ") + game.get_map_name()
 		self.current.findChild(name="game_playersnum").text =  _("Players: ") + \
-			unicode(game.get_player_count()) + u"/" + unicode(game.get_player_limit())
+				unicode(game.get_player_count()) + u"/" + unicode(game.get_player_limit())
 		creator_text = self.current.findChild(name="game_creator")
 		creator_text.text = _("Creator: ") + unicode(game.get_creator())
 		creator_text.adaptLayout()
@@ -173,25 +185,23 @@ class MultiplayerMenu(object):
 			return
 		self.__show_gamelobby()
 
-	def __start_game(self, game):
+	def __prepare_game(self, game):
 		self._switch_current_widget('loadingscreen', center=True, show=True)
 		import horizons.main
 		horizons.main.prepare_multiplayer(game)
 
-	def __game_ready(self, game):
+	def __start_game(self, game):
 		import horizons.main
 		horizons.main.start_multiplayer(game)
 
 	def __show_gamelobby(self):
 		"""Shows lobby (gui for waiting until all players have joined). Allows chatting"""
 		event_map = {
-		  'cancel' : self.show_multi,
-		  }
+			'cancel' : self.show_multi,
+		}
 		game = self.__get_selected_game()
 		self.widgets.reload('multiplayer_gamelobby') # remove old chat messages, etc
 		self._switch_current_widget('multiplayer_gamelobby', center=True, event_map=event_map, hide_old=True)
-
-		adjust_widget_black_background(self.widgets['multiplayer_gamelobby'])
 
 		self.__update_game_details(game)
 		self.current.findChild(name="game_players").text = u", ".join(game.get_players())
@@ -210,8 +220,9 @@ class MultiplayerMenu(object):
 	def __send_chat_message(self):
 		"""Sends a chat message. Called when user presses enter in the input field"""
 		msg = self.current.findChild(name="chatTextField").text
-		self.current.findChild(name="chatTextField").text = u""
-		NetworkInterface().chat(msg)
+		if len(msg):
+			self.current.findChild(name="chatTextField").text = u""
+			NetworkInterface().chat(msg)
 
 	def __receive_chat_message(self, game, player, msg):
 		"""Receive a chat message from the network. Only possible in lobby state"""
@@ -223,32 +234,58 @@ class MultiplayerMenu(object):
 			chatbox.items.append(line)
 		chatbox.selected = len(chatbox.items) - 1
 
+	def __print_event_message(self, msg):
+		line_max_length = 40
+		chatbox = self.current.findChild(name="chatbox")
+		full_msg = u"* " + msg + " *"
+		lines = textwrap.wrap(full_msg, line_max_length)
+		for line in lines:
+			chatbox.items.append(line)
+		chatbox.selected = len(chatbox.items) - 1
+
+	def __player_joined(self, game, player):
+		self.__print_event_message("%s has joined the game" % (player.name))
+
+	def __player_left(self, game, player):
+		self.__print_event_message("%s has left the game" % (player.name))
+
+	def __player_changed_name(self, game, plold, plnew, myself):
+		if myself:
+			self.__print_event_message("You are now known as %s" % (plnew.name))
+		else:
+			self.__print_event_message("%s is now known as %s" % (plold.name, plnew.name))
+
 	def __show_create_game(self):
 		"""Shows the interface for creating a multiplayer game"""
 		event_map = {
-		  'cancel' : self.show_multi,
-		  'create' : self.__create_game
+			'cancel' : self.show_multi,
+			'create' : self.__create_game
 		}
 		self._switch_current_widget('multiplayer_creategame', center=True, event_map=event_map, hide_old=True)
 
-		adjust_widget_black_background(self.widgets['multiplayer_creategame'])
-
 		self.current.files, self.maps_display = SavegameManager.get_maps()
 		self.current.distributeInitialData({
-		  'maplist' : self.maps_display,
-		  'playerlimit' : range(2, MULTIPLAYER.MAX_PLAYER_COUNT)
+			'maplist' : self.maps_display,
+			'playerlimit' : range(2, MULTIPLAYER.MAX_PLAYER_COUNT)
 		})
+		def _update_infos():
+			mapindex = self.current.collectData('maplist')
+			mapfile = self.current.files[mapindex]
+			number_of_players = SavegameManager.get_recommended_number_of_players( mapfile )
+			self.current.findChild(name="recommended_number_of_players_lbl").text = \
+					_("Recommended number of players: ") + unicode( number_of_players )
 		if len(self.maps_display) > 0: # select first entry
-				self.current.distributeData({
-				  'maplist' : 0,
-				  'playerlimit' : 0
-				 })
+			self.current.distributeData({
+				'maplist' : 0,
+				'playerlimit' : 0
+			})
+			_update_infos()
 		self.current.show()
 
 		self.on_escape = event_map['cancel']
 
 	def __create_game(self):
-		"""Acctually create a game, join it and display the lobby"""
+		"""Actually create a game, join it and display the lobby"""
 		# create the game
 		#TODO: possibly some input validation
 		mapindex = self.current.collectData('maplist')

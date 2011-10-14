@@ -29,6 +29,8 @@ class IngameKeyListener(fife.IKeyListener, LivingObject):
 
 	def __init__(self, session):
 		super(IngameKeyListener, self).__init__()
+		from horizons.session import Session
+		assert isinstance(session, Session)
 		self.session = session
 		horizons.main.fife.eventmanager.addKeyListenerFront(self)
 		self.keysPressed = []
@@ -66,14 +68,22 @@ class IngameKeyListener(fife.IKeyListener, LivingObject):
 		elif keystr == 'g':
 			gridrenderer = self.session.view.renderer['GridRenderer']
 			gridrenderer.setEnabled( not gridrenderer.isEnabled() )
+		elif keystr == 'h':
+			self.session.coordinates_tooltip.toggle()
 		elif keystr == 'x':
 			self.session.destroy_tool()
-		elif keystr == '+':
+		elif keystr == '+' or keystr == '=':
 			self.session.speed_up()
 		elif keystr == '-':
 			self.session.speed_down()
 		elif keystr == 'p':
-			self.session.ingame_gui.toggle_ingame_pause()
+			self.session.gui.toggle_pause()
+		elif keyval == fife.Key.F2:
+			self.session.ingame_gui.players_overview.toggle_visibility()
+		elif keyval == fife.Key.F3:
+			self.session.ingame_gui.players_settlements.toggle_visibility()
+		elif keyval == fife.Key.F4:
+			self.session.ingame_gui.players_ships.toggle_visibility()
 		elif keystr == 'l':
 			self.session.ingame_gui.logbook.toggle_visibility()
 		elif keystr == 'd':
@@ -169,4 +179,3 @@ class IngameKeyListener(fife.IKeyListener, LivingObject):
 		   keyval == fife.Key.DOWN:
 			self.key_scroll[1] = 0
 		self.session.view.autoscroll_keys(self.key_scroll[0], self.key_scroll[1])
-

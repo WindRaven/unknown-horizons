@@ -21,7 +21,6 @@
 
 import logging
 
-from horizons.util import Callback
 from horizons.util.changelistener import metaChangeListenerDecorator
 from horizons.world.resourcehandler import ResourceHandler
 from horizons.world.building.buildingresourcehandler import BuildingResourceHandler
@@ -43,28 +42,28 @@ class Producer(ResourceHandler):
 
 	production_class = Production
 
-	_capacity_utilisation_update_interval = 3.0
-
 	# INIT
 	def __init__(self, auto_init=True, **kwargs):
 		super(Producer, self).__init__(**kwargs)
-		self.__init()
 		# add production lines as specified in db.
 		if auto_init:
 			for prod_line in self.session.db("SELECT id FROM production_line WHERE object_id = ? \
 			    AND enabled_by_default = 1", self.id):
+				# for abeaumont patch:
+				#self.add_production_by_id(prod_line[0], self.worldid, self.production_class)
 				self.add_production_by_id(prod_line[0], self.production_class)
 
-	def __init(self):
-		self.capacity_utilisation = 0.0 # float from 0.0 to 1.0
-		# update capacity util. every 3 seconds
-		if hasattr(self, 'select'): # only for selectables
-			Scheduler().add_new_object(self._update_capacity_utilisation, self, \
-		                   Scheduler().get_ticks(self._capacity_utilisation_update_interval), -1)
+	@property
+	def capacity_utilisation(self):
+		total = 0
+		productions = self._get_productions()
+		for production in productions:
+			state_history = production.get_state_history_times(False)
+			total += state_history[PRODUCTION.STATES.producing.index]
+		return total / len(productions)
 
 	def load(self, db, worldid):
 		super(Producer, self).load(db, worldid)
-		self.__init()
 
 	def load_production(self, db, worldid):
 		return self.production_class.load(db, worldid)
@@ -121,16 +120,6 @@ class Producer(ResourceHandler):
 		elif state is PRODUCTION.STATES.inventory_full:
 			self.act("idle_full", repeating=True)
 
-	def _update_capacity_utilisation(self):
-		"""Update the capacity utilisation value"""
-		capacity_used = (self._get_current_state() == PRODUCTION.STATES.producing)
-		part = self._capacity_utilisation_update_interval / \
-		     PRODUCTION.CAPACITY_UTILISATION_CONSIDERED_SECONDS
-		part *= 1 if capacity_used else -1
-		self.capacity_utilisation += part
-		self.capacity_utilisation = min(self.capacity_utilisation, 1.0)
-		self.capacity_utilisation = max(self.capacity_utilisation, 0.0)
-
 @metaChangeListenerDecorator("building_production_finished")
 class ProducerBuilding(Producer, BuildingResourceHandler):
 	"""Class for buildings, that produce something.
@@ -147,6 +136,10 @@ class ProducerBuilding(Producer, BuildingResourceHandler):
 		produced_res = production.get_produced_res()
 		self.on_building_production_finished(produced_res)
 
+	def get_output_blocked_time(self):
+		""" gets the amount of time in range [0, 1] the output storage is blocked for the AI """
+		return max(production.get_output_blocked_time() for production in self._get_productions())
+
 class QueueProducer(Producer):
 	"""The QueueProducer stores all productions in a queue and runs them one
 	by one. """
@@ -158,11 +151,19 @@ class QueueProducer(Producer):
 		self.__init()
 
 	def __init(self):
-		self.production_queue = []
+		self.production_queue = [] # queue of production line ids
+
+	def save(self, db):
+		super(QueueProducer, self).save(db)
+		for prod_line_id in self.production_queue:
+			db("INSERT INTO production_queue (rowid, production_line_id) VALUES(?, ?)",
+			   self.worldid, prod_line_id)
 
 	def load(self, db, worldid):
 		super(QueueProducer, self).load(db, worldid)
 		self.__init()
+		for (prod_line_id,) in db("SELECT production_line_id FROM production_queue WHERE rowid = ?", worldid):
+			self.production_queue.append(prod_line_id)
 
 	def add_production_by_id(self, production_line_id, production_class = Production):
 		"""Convenience method.
@@ -196,13 +197,12 @@ class QueueProducer(Producer):
 
 	def start_next_production(self):
 		"""Starts the next production that is in the queue, if there is one."""
-		#print "Start next?"
 		if self.check_next_production_startable():
-			#print "yes"
 			self.set_active(active=True)
 			self._productions.clear() # Make sure we only have one production active
 			production_line_id = self.production_queue.pop(0)
-			prod = self.production_class(inventory=self.inventory, prod_line_id=production_line_id)
+			owner_inventory = self._get_owner_inventory()
+			prod = self.production_class(inventory=self.inventory, owner_inventory=owner_inventory, prod_line_id=production_line_id)
 			prod.add_production_finished_listener(self.on_queue_element_finished)
 			self.add_production( prod )
 		else:
@@ -262,7 +262,8 @@ class UnitProducerBuilding(QueueProducer, ProducerBuilding):
 							if self.island.get_tile(point) is None:
 								tile = self.session.world.get_tile(point)
 								if tile is not None and tile.is_water and coord not in self.session.world.ship_map:
-									CreateUnit(self.owner.worldid, unit, point.x, point.y).execute(self.session)
+									# execute bypassing the manager, it's simulated on every machine
+									CreateUnit(self.owner.worldid, unit, point.x, point.y)(issuer=self.owner)
 									found_tile = True
 									break
 						radius += 1

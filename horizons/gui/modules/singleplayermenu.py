@@ -19,12 +19,14 @@
 # 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 # ###################################################
 
+from math import ceil
+
 import horizons.main
 
 from horizons.util import Callback, random_map
 from horizons.savegamemanager import SavegameManager
-from horizons.gui.modules import PlayerDataSelection
-from horizons.util.gui import adjust_widget_black_background
+from horizons.gui.modules import AIDataSelection, PlayerDataSelection
+from horizons.constants import AI
 
 class SingleplayerMenu(object):
 	def show_single(self, show = 'scenario'): # tutorial
@@ -37,43 +39,49 @@ class SingleplayerMenu(object):
 		self.widgets.reload('singleplayermenu')
 		self._switch_current_widget('singleplayermenu', center=True)
 		eventMap = {
-			'cancel'   : self.show_main,
-			'okay'     : self.start_single,
-			'showScenario' : Callback(self.show_single, show='scenario'),
-			'showCampaign' : Callback(self.show_single, show='campaign'),
-			'showRandom' : Callback(self.show_single, show='random'),
-			'showMaps' : Callback(self.show_single, show='free_maps')
+			'cancel'    : self.show_main,
+			'okay'      : self.start_single,
+			'scenario'  : Callback(self.show_single, show='scenario'),
+			'campaign'  : Callback(self.show_single, show='campaign'),
+			'random'    : Callback(self.show_single, show='random'),
+			'free_maps' : Callback(self.show_single, show='free_maps')
 		}
 
-		adjust_widget_black_background(self.widgets['singleplayermenu'])
-
 		# init gui for subcategory
+		show_ai_options = False
+		del eventMap[show]
+		self.current.findChild(name=show).marked = True
+		right_side = self.widgets['sp_%s' % show]
+		self.current.findChild(name="right_side_box").addChild(right_side)
 		if show == 'random':
-			del eventMap['showRandom']
-			self.current.findChild(name="showRandom").marked = True
-			to_remove = self.current.findChild(name="map_list_area")
-			to_remove.parent.removeChild(to_remove)
-			to_remove = self.current.findChild(name="choose_map_lbl")
-			to_remove.parent.removeChild(to_remove)
-			# need to add some options here (generation algo, size, ... )
+			show_ai_options = True
+			self.__setup_random_map_selection(right_side)
+			self.__setup_game_settings_selection()
+		elif show == 'free_maps':
+			self.current.files, maps_display = SavegameManager.get_maps()
+
+			self.current.distributeInitialData({ 'maplist' : maps_display, })
+			def _update_infos():
+				number_of_players = SavegameManager.get_recommended_number_of_players( self.__get_selected_map() )
+				self.current.findChild(name="recommended_number_of_players_lbl").text = \
+				    _("Recommended number of players: ") + unicode( number_of_players )
+			if len(maps_display) > 0:
+				# select first entry
+				self.current.distributeData({ 'maplist' : 0, })
+				_update_infos()
+			self.current.findChild(name="maplist").capture(_update_infos)
+			show_ai_options = True
+			self.__setup_game_settings_selection()
 		else:
-			if show == 'free_maps':
-				del eventMap['showMaps']
-				self.current.findChild(name="showMaps").marked = True
-				self.current.files, maps_display = SavegameManager.get_maps()
-			elif show == 'campaign':
-				del eventMap['showCampaign']
-				self.current.findChild(name="showCampaign").marked = True
+			choosable_locales = ['en', horizons.main.fife.get_locale()]
+			if show == 'campaign':
 				self.current.files, maps_display = SavegameManager.get_campaigns()
 				# tell people that we don't have any content
 				text = u"We currently don't have any campaigns available for you. " + \
 				u"If you are interested in adding campaigns to Unknown Horizons, " + \
 				u"please contact us via our website (http://www.unknown-horizons.org)!"
 				self.show_popup("No campaigns available yet", text)
-			else: # scenario
-				del eventMap['showScenario']
-				self.current.findChild(name="showScenario").marked = True
-				choosable_locales = ['en',horizons.main.fife.get_locale()]
+			elif show == 'scenario':
 				self.current.files, maps_display = SavegameManager.get_available_scenarios(locales = choosable_locales)
 
 			# get the map files and their display names
@@ -109,14 +117,15 @@ class SingleplayerMenu(object):
 						self.current.findChild(name="map_author").text = _("Author: ") + unicode(campaign_info.get('author', ''))
 						self.current.findChild(name="map_desc").text = _("Description: ") + unicode(campaign_info.get('description', ''))
 
-				if show in ('scenario', 'campaign'):
-					self.current.findChild(name="maplist").capture(_update_infos)
-					_update_infos()
+				self.current.findChild(name="maplist").capture(_update_infos)
+				_update_infos()
 
 
 		self.current.mapEvents(eventMap)
 
 		self.current.playerdata = PlayerDataSelection(self.current, self.widgets)
+		if show_ai_options:
+			self.current.aidata = AIDataSelection(self.current, self.widgets)
 		self.current.show()
 		self.on_escape = self.show_main
 
@@ -129,16 +138,20 @@ class SingleplayerMenu(object):
 			return
 		playercolor = self.current.playerdata.get_player_color()
 		horizons.main.fife.set_uh_setting("Nickname", playername)
-		horizons.main.fife.save_settings()
 
-		if self.current.collectData('showRandom'):
-			map_file = random_map.generate_map()
+		if self.current.collectData('random'):
+			map_file = self.__get_random_map_file()
 		else:
 			assert self.current.collectData('maplist') != -1
 			map_file = self.__get_selected_map()
 
-		is_scenario = bool(self.current.collectData('showScenario'))
-		is_campaign = bool(self.current.collectData('showCampaign'))
+		is_scenario = bool(self.current.collectData('scenario'))
+		is_campaign = bool(self.current.collectData('campaign'))
+		if not is_scenario and not is_campaign:
+			ai_players = int(self.current.aidata.get_ai_players())
+			horizons.main.fife.set_uh_setting("AIPlayers", ai_players)
+		horizons.main.fife.save_settings()
+
 		self.show_loading_screen()
 		if is_scenario:
 			from horizons.scenario import InvalidScenarioFileFormat
@@ -165,18 +178,103 @@ class SingleplayerMenu(object):
 				'campaign_name': campaign_info.get('codename'), 'scenario_index': 0, 'scenario_name': scenario
 				})
 		else: # free play/random map
-			horizons.main.start_singleplayer(map_file, playername, playercolor)
+			horizons.main.start_singleplayer(map_file, playername, playercolor, ai_players = ai_players, \
+				human_ai = AI.HUMAN_AI, trader_enabled = self.widgets['game_settings'].findChild(name = 'free_trader').marked, \
+				pirate_enabled = self.widgets['game_settings'].findChild(name = 'pirates').marked, \
+				natural_resource_multiplier = self.__get_natural_resource_multiplier())
+
+	# random map options
+	map_sizes = [50, 100, 150, 200, 250]
+	water_percents = [20, 30, 40, 50, 60, 70, 80]
+	island_sizes = [30, 40, 50, 60, 70]
+	island_size_deviations = [5, 10, 20, 30, 40]
+
+	def __setup_random_map_selection(self, widget):
+		map_size_slider = widget.findChild(name = 'map_size_slider')
+		def on_map_size_slider_change():
+			widget.findChild(name = 'map_size_lbl').text = _('Map size:') + u' ' + \
+				unicode(self.map_sizes[int(map_size_slider.getValue())])
+			horizons.main.fife.set_uh_setting("RandomMapSize", map_size_slider.getValue())
+			horizons.main.fife.save_settings()
+		map_size_slider.capture(on_map_size_slider_change)
+		map_size_slider.setValue(horizons.main.fife.get_uh_setting("RandomMapSize"))
+
+		water_percent_slider = widget.findChild(name = 'water_percent_slider')
+		def on_water_percent_slider_change():
+			widget.findChild(name = 'water_percent_lbl').text = _('Water: ') + u' ' + \
+				unicode(self.water_percents[int(water_percent_slider.getValue())]) + u'%'
+			horizons.main.fife.set_uh_setting("RandomMapWaterPercent", water_percent_slider.getValue())
+		water_percent_slider.capture(on_water_percent_slider_change)
+		water_percent_slider.setValue(horizons.main.fife.get_uh_setting("RandomMapWaterPercent"))
+
+		max_island_size_slider = widget.findChild(name = 'max_island_size_slider')
+		def on_max_island_size_slider_change():
+			widget.findChild(name = 'max_island_size_lbl').text = _('Max island size:') + u' ' + \
+				unicode(self.island_sizes[int(max_island_size_slider.getValue())])
+			horizons.main.fife.set_uh_setting("RandomMapMaxIslandSize", max_island_size_slider.getValue())
+		max_island_size_slider.capture(on_max_island_size_slider_change)
+		max_island_size_slider.setValue(horizons.main.fife.get_uh_setting("RandomMapMaxIslandSize"))
+
+		preferred_island_size_slider = widget.findChild(name = 'preferred_island_size_slider')
+		def on_preferred_island_size_slider_change():
+			widget.findChild(name = 'preferred_island_size_lbl').text = _('Preferred island size:') + u' ' + \
+				unicode(self.island_sizes[int(preferred_island_size_slider.getValue())])
+			horizons.main.fife.set_uh_setting("RandomMapPreferredIslandSize", preferred_island_size_slider.getValue())
+		preferred_island_size_slider.capture(on_preferred_island_size_slider_change)
+		preferred_island_size_slider.setValue(horizons.main.fife.get_uh_setting("RandomMapPreferredIslandSize"))
+
+		island_size_deviation_slider = widget.findChild(name = 'island_size_deviation_slider')
+		def on_island_size_deviation_slider_change():
+			widget.findChild(name = 'island_size_deviation_lbl').text = _('Island size deviation:') + u' ' + \
+				unicode(self.island_size_deviations[int(island_size_deviation_slider.getValue())])
+			horizons.main.fife.set_uh_setting("RandomMapIslandSizeDeviation", island_size_deviation_slider.getValue())
+		island_size_deviation_slider.capture(on_island_size_deviation_slider_change)
+		island_size_deviation_slider.setValue(horizons.main.fife.get_uh_setting("RandomMapIslandSizeDeviation"))
+
+		on_map_size_slider_change()
+		on_water_percent_slider_change()
+		on_max_island_size_slider_change()
+		on_preferred_island_size_slider_change()
+		on_island_size_deviation_slider_change()
+
+	# game options
+	resource_densities = [0.5, 0.7, 1, 1.4, 2]
+
+	def __setup_game_settings_selection(self):
+		widget = self.widgets['game_settings']
+		if self.current.findChild(name = widget.name) is None:
+			self.current.findChild(name = 'game_settings_box').addChild(widget)
+
+		resource_density_slider = widget.findChild(name = 'resource_density_slider')
+		def on_resource_density_slider_change():
+			widget.findChild(name = 'resource_density_lbl').text = _('Resource density: ') + u' ' + \
+				unicode(self.resource_densities[int(resource_density_slider.getValue())]) + u'x'
+			horizons.main.fife.set_uh_setting("MapResourceDensity", resource_density_slider.getValue())
+		resource_density_slider.capture(on_resource_density_slider_change)
+		resource_density_slider.setValue(horizons.main.fife.get_uh_setting("MapResourceDensity"))
+
+		on_resource_density_slider_change()
+
+	def __get_random_map_file(self):
+		map_size = self.map_sizes[int(self.current.findChild(name = 'map_size_slider').getValue())]
+		water_percent = self.water_percents[int(self.current.findChild(name = 'water_percent_slider').getValue())]
+		max_island_size = self.island_sizes[int(self.current.findChild(name = 'max_island_size_slider').getValue())]
+		preferred_island_size = self.island_sizes[int(self.current.findChild(name = 'preferred_island_size_slider').getValue())]
+		island_size_deviation = self.island_size_deviations[int(self.current.findChild(name = 'island_size_deviation_slider').getValue())]
+		return random_map.generate_map(None, map_size, water_percent, max_island_size, preferred_island_size, island_size_deviation)
+
+	def __get_natural_resource_multiplier(self):
+		return self.resource_densities[int(self.widgets['game_settings'].findChild(name = 'resource_density_slider').getValue())]
 
 	def __get_selected_map(self):
 		"""Returns map file, that is selected in the maplist widget"""
 		return self.current.files[ self.current.collectData('maplist') ]
 
-
 	def __show_invalid_scenario_file_popup(self, exception):
 		"""Shows a popup complaining about invalid scenario file.
 		@param exception: InvalidScenarioFile exception instance"""
 		print "Error: ", unicode(str(exception))
-		self.show_popup(_("Invalid scenario file"), \
-		                _("The selected file is not a valid scenario file.\nError message: ") + \
-		                unicode(str(exception)) + _("\nPlease report this to the author."))
-
+		self.show_error_popup(_("Invalid scenario file"), \
+		                description=_("The selected file is not a valid scenario file."),
+		                details=_("Error message:") + u' ' + unicode(str(exception)),
+		                advice=_("Please report this to the author."))

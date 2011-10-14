@@ -73,7 +73,14 @@ class YamlCache(object):
 
 	@classmethod
 	def _write_bin_file(cls):
-		s = shelve.open(cls.yaml_cache)
+		try:
+			s = shelve.open(cls.yaml_cache)
+		except UnicodeError:
+			# this can happen with unicode characters in the name, because the bdb module on win
+			# converts it internally to ascii and fails to open the file. Since this is just a cache,
+			# we don't require it for the game to function, there is just a slight speed penality
+			# on every startup
+			return
 		for key, value in cls.cache.iteritems():
 			# TODO : manage unicode problems (paths with accents ?)
 			s[str(key)] = value # We have to decode it because _user_dir is encoded in constants
@@ -91,6 +98,8 @@ class YamlCache(object):
 			# Since this may also be caused by a different error, we just try again once.
 			os.remove(cls.yaml_cache)
 			s = shelve.open(cls.yaml_cache)
+		except UnicodeError:
+			return # see _write_bin_file
 
 		for key, value in s.iteritems():
 			cls.cache[key] = value
@@ -118,6 +127,7 @@ class SavegameManager(object):
 	quicksave_dir = savegame_dir+"/quicksave"
 	demo_dir = "content/demo"
 	maps_dir = "content/maps"
+	scenario_maps_dir = "content/scenariomaps"
 	scenarios_dir = "content/scenarios"
 	campaigns_dir = "content/campaign"
 
@@ -178,7 +188,7 @@ class SavegameManager(object):
 		if not filename_extension:
 			filename_extension = cls.savegame_extension
 		files = [f for p in dirs for f in glob.glob(p+'/*.'+filename_extension) if \
-						 os.path.isfile(f)]
+		         os.path.isfile(f)]
 		files.sort()
 		if include_displaynames:
 			return (files, cls.__get_displaynames(files))
@@ -196,7 +206,7 @@ class SavegameManager(object):
 	def create_autosave_filename(cls):
 		"""Returns the filename for an autosave"""
 		name = "%s/%s" % (cls.autosave_dir, \
-								      cls.autosave_filenamepattern % {'timestamp':time.time()})
+		                  cls.autosave_filenamepattern % {'timestamp':time.time()})
 		cls.log.debug("Savegamemanager: creating autosave-filename: %s", name)
 		return name
 
@@ -204,7 +214,7 @@ class SavegameManager(object):
 	def create_quicksave_filename(cls):
 		"""Returns the filename for a quicksave"""
 		name = "%s/%s" % (cls.quicksave_dir, \
-								      cls.quicksave_filenamepattern % {'timestamp':time.time()})
+		                  cls.quicksave_filenamepattern % {'timestamp':time.time()})
 		cls.log.debug("Savegamemanager: creating quicksave-filename: %s", name)
 		return name
 
@@ -223,10 +233,19 @@ class SavegameManager(object):
 
 		if autosaves:
 			tmp_del("%s/*.%s" % (cls.autosave_dir, cls.savegame_extension),
-							horizons.main.fife.get_uh_setting("AutosaveMaxCount"))
+			        horizons.main.fife.get_uh_setting("AutosaveMaxCount"))
 		if quicksaves:
 			tmp_del("%s/*.%s" % (cls.quicksave_dir, cls.savegame_extension),
-							horizons.main.fife.get_uh_setting("QuicksaveMaxCount"))
+			        horizons.main.fife.get_uh_setting("QuicksaveMaxCount"))
+
+	@classmethod
+	def get_recommended_number_of_players(cls, savegamefile):
+		dbdata = DbReader(savegamefile)\
+		        ("SELECT `value` FROM `metadata` WHERE `name` = ?", "recommended_number_of_players")
+		if dbdata:
+			return dbdata[0][0]
+		else:
+			return "undefined"
 
 	@classmethod
 	def get_metadata(cls, savegamefile):
@@ -243,7 +262,7 @@ class SavegameManager(object):
 
 		screenshot_data = None
 		try:
-			screenshot_data = db("SELECT value from metadata_blob where name = ?", "screen")[0][0]
+			screenshot_data = db("SELECT value FROM metadata_blob where name = ?", "screen")[0][0]
 		except IndexError: pass
 		except sqlite3.OperationalError: pass
 		metadata['screenshot'] = screenshot_data
@@ -279,7 +298,7 @@ class SavegameManager(object):
 		"""Returns all savegames, that were saved via the ingame save dialog"""
 		cls.log.debug("Savegamemanager: regular saves from: %s", cls.savegame_dir)
 		return cls.__get_saves_from_dirs([cls.savegame_dir], \
-								                     include_displaynames = include_displaynames)
+		                                 include_displaynames = include_displaynames)
 
 	@classmethod
 	def get_maps(cls, include_displaynames = True):
@@ -290,25 +309,25 @@ class SavegameManager(object):
 	def get_saves(cls, include_displaynames = True):
 		"""Returns all savegames"""
 		cls.log.debug("Savegamemanager: get saves from %s, %s, %s, %s", cls.savegame_dir, \
-								  cls.autosave_dir, cls.quicksave_dir, cls.demo_dir)
+		              cls.autosave_dir, cls.quicksave_dir, cls.demo_dir)
 		return cls.__get_saves_from_dirs([cls.savegame_dir, cls.autosave_dir, \
-								                      cls.quicksave_dir, cls.demo_dir], \
-								                     include_displaynames = include_displaynames)
+		                                  cls.quicksave_dir, cls.demo_dir], \
+		                                 include_displaynames = include_displaynames)
 
 	@classmethod
 	def get_quicksaves(cls, include_displaynames = True):
 		"""Returns all savegames, that were saved via quicksave"""
 		cls.log.debug("Savegamemanager: quicksaves from: %s", cls.quicksave_dir)
 		return cls.__get_saves_from_dirs([cls.quicksave_dir], \
-								                     include_displaynames = include_displaynames)
+		                                 include_displaynames = include_displaynames)
 
 	@classmethod
 	def get_scenarios(cls, include_displaynames = True):
 		"""Returns all scenarios"""
 		cls.log.debug("Savegamemanager: scenarios from: %s", cls.scenarios_dir)
 		return cls.__get_saves_from_dirs([cls.scenarios_dir], \
-								                     include_displaynames = include_displaynames,
-								                     filename_extension = cls.scenario_extension)
+		                                 include_displaynames = include_displaynames,
+		                                 filename_extension = cls.scenario_extension)
 
 	@classmethod
 	def get_available_scenarios(cls, include_displaynames = True, locales = None):
@@ -378,8 +397,8 @@ class SavegameManager(object):
 		"""
 		cls.log.debug("Savegamemanager: campaigns from: %s", cls.campaigns_dir)
 		files, names = cls.__get_saves_from_dirs([cls.campaigns_dir], \
-								                             include_displaynames = include_displaynames,
-								                             filename_extension = cls.campaign_extension)
+		                                         include_displaynames = include_displaynames,
+		                                         filename_extension = cls.campaign_extension)
 		if not include_displaynames:
 			return (files,)
 		if not include_scenario_list:

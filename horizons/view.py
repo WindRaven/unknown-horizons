@@ -31,10 +31,9 @@ from horizons.constants import LAYERS, VIEW, GAME_SPEED
 class View(ChangeListener):
 	"""Class that takes care of all the camera and rendering stuff."""
 
-	def __init__(self, session, center = (0, 0)):
+	def __init__(self, session):
 		"""
 		@param session: Session instance
-		@param center: center position for the main camera
 		"""
 		super(View, self).__init__()
 		self.session = session
@@ -96,6 +95,7 @@ class View(ChangeListener):
 		pos.x = x
 		pos.y = y
 		self.cam.setLocation(loc)
+		self.cam.refresh()
 		self._changed()
 
 	def autoscroll(self, x, y):
@@ -157,14 +157,6 @@ class View(ChangeListener):
 		horizons.main.fife.soundmanager.setListenerPosition(pos.x, pos.y, 1)
 		self._changed()
 
-	def set_location(self, location):
-		loc = self.cam.getLocation()
-		pos = loc.getExactLayerCoordinatesRef()
-		pos.x, pos.y = location[0], location[1]
-		self.cam.setLocation(loc)
-		self.cam.refresh()
-		self._changed()
-
 	def zoom_out(self):
 		zoom = self.cam.getZoom() * VIEW.ZOOM_LEVELS_FACTOR
 		if(zoom < VIEW.ZOOM_MIN):
@@ -181,7 +173,17 @@ class View(ChangeListener):
 		return self.cam.getZoom()
 
 	def set_zoom(self, zoom):
+		in_icon = self.session.ingame_gui.widgets['minimap'].findChild(name='zoomIn')
+		out_icon = self.session.ingame_gui.widgets['minimap'].findChild(name='zoomOut')
 		self.cam.setZoom(zoom)
+		if zoom == VIEW.ZOOM_MIN:
+			out_icon.set_inactive()
+		else:
+			out_icon.set_active()
+		if zoom == VIEW.ZOOM_MAX:
+			in_icon.set_inactive()
+		else:
+			in_icon.set_active()
 		self._changed()
 
 	def rotate_right(self):
@@ -198,8 +200,8 @@ class View(ChangeListener):
 		"""Returns the coords of what is displayed on the screen as Rect"""
 		coords = self.cam.getLocationRef().getLayerCoordinates()
 		cell_dim = self.cam.getCellImageDimensions()
-		screen_width_as_coords = (horizons.main.fife.engine_settings.getScreenWidth()/cell_dim.x, \
-		                          horizons.main.fife.engine_settings.getScreenHeight()/cell_dim.y)
+		screen_width_as_coords = (horizons.main.fife.engine_settings.getScreenWidth()/cell_dim.x + 1, \
+		                          horizons.main.fife.engine_settings.getScreenHeight()/cell_dim.y + 1)
 		return Rect.init_from_topleft_and_size(coords.x - (screen_width_as_coords[0]/2), \
 		                                       coords.y - (screen_width_as_coords[1]/2),
 		                                       *screen_width_as_coords)
@@ -218,4 +220,4 @@ class View(ChangeListener):
 		zoom, rotation, loc_x, loc_y = res[0]
 		self.set_zoom(zoom)
 		self.set_rotation(rotation)
-		self.set_location((loc_x, loc_y))
+		self.center(loc_x, loc_y)

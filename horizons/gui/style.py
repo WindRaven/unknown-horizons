@@ -47,7 +47,7 @@ STYLES= {
 			'font' : 'libertine_14_black',
 			'border_size': 0,
 		},
-		'Slider' : {
+		('Slider','StepSlider') : {
 			'base_color' : fife.Color(80,80,40,128),
 		},
 		'TextBox' : {
@@ -75,10 +75,6 @@ STYLES= {
 			'border_size': 0,
 			'background_color' : fife.Color(40, 40, 40, 0),
 			'font' : 'libertine_14_black',
-		},
-		'ClickLabel' : {
-			'border_size': 0,
-			'font' : 'libertine_small_black',
 		},
 		'Window' : {
 			'border_size': 1,
@@ -129,7 +125,7 @@ STYLES= {
 			'margins' : (0,0)
 		},
 		'Label' : {
-            		'margins': (0,0),
+			'margins': (0,0),
 			'font' : 'libertine_14_black'
 		},
 		# NOTE: This is a hack to add padding attributs to boxes of this style
@@ -249,10 +245,7 @@ STYLES= {
 			'foreground_color' : fife.Color(80,80,40),
 			'font' : 'libertine_14_black',
 		},
-		'Slider' : {
-			'base_color' : fife.Color(80,80,40,128),
-		},
-		'StepSlider' : {
+		('Slider','StepSlider') : {
 			'base_color' : fife.Color(80,80,40,128),
 		},
 		'TextBox' : {

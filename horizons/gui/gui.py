@@ -30,7 +30,7 @@ import horizons.main
 from horizons.savegamemanager import SavegameManager
 from horizons.gui.keylisteners import MainListener
 from horizons.util import Callback
-from horizons.util.gui import adjust_widget_black_background, LazyWidgetsDict
+from horizons.util.gui import LazyWidgetsDict, adjust_widget_black_background
 from horizons.ambientsound import AmbientSound
 from horizons.i18n.utils import N_
 
@@ -52,6 +52,7 @@ class Gui(SingleplayerMenu, MultiplayerMenu):
 	  'multiplayer_creategame' : 'book',
 	  'multiplayer_gamelobby' : 'book',
 	  'playerdataselection' : 'book',
+	  'aidataselection' : 'book',
 	  'select_savegame': 'book',
 	  'ingame_pause': 'book',
 #	  'credits': 'book',
@@ -63,6 +64,8 @@ class Gui(SingleplayerMenu, MultiplayerMenu):
 		self.widgets = LazyWidgetsDict(self.styles) # access widgets with their filenames without '.xml'
 		self.session = None
 		self.current_dialog = None
+
+		self.dialog_executed = False
 
 		self.__pause_displayed = False
 
@@ -83,45 +86,48 @@ class Gui(SingleplayerMenu, MultiplayerMenu):
 
 		self.on_escape = self.show_quit
 
-		adjust_widget_black_background(self.widgets['mainmenu'])
-
 	def toggle_pause(self):
 		"""
 		Show Pause menu
 		"""
+		# import here because we get a weird cycle otherwise
 		if self.__pause_displayed:
 			self.__pause_displayed = False
-			self.return_to_game()
+			self.hide()
+			self.current = None
+			self.session.speed_unpause(True)
+			self.on_escape = self.toggle_pause
+
 		else:
 			self.__pause_displayed = True
-			self._switch_current_widget('ingamemenu', center=True, show=True, event_map={
+			# reload the menu because caching creates spacing problems
+			# see http://trac.unknown-horizons.org/t/ticket/1047
+			self.widgets.reload('ingamemenu')
+			self._switch_current_widget('ingamemenu', center=True, show=False, event_map={
 				  # icons
 				'loadgameButton' : horizons.main.load_game,
 				'savegameButton' : self.save_game,
 				'settingsLink'   : self.show_settings,
 				'helpLink'       : self.on_help,
-				'startGame'      : self.return_to_game,
+				'startGame'      : self.toggle_pause,
 				'closeButton'    : self.quit_session,
 				# labels
 				'loadgame' : horizons.main.load_game,
 				'savegame' : self.save_game,
 				'settings' : self.show_settings,
 				'help'     : self.on_help,
-				'start'    : self.return_to_game,
+				'start'    : self.toggle_pause,
 				'quit'     : self.quit_session,
 			})
+			self.current.additional_widget = pychan.Icon(image="content/gui/images/background/transparent.png")
+			self.current.additional_widget.position = (0,0)
+			self.current.additional_widget.show()
+			self.current.show()
 
-			self.session.speed_pause()
+			self.session.speed_pause(True)
 			self.on_escape = self.toggle_pause
 
 # what happens on button clicks
-
-	def return_to_game(self):
-		"""Return to the horizons."""
-		self.hide() # Hide old gui
-		self.current = None
-		self.session.speed_unpause()
-		self.on_escape = self.toggle_pause
 
 	def save_game(self):
 		"""Wrapper for saving for separating gui messages from save logic
@@ -165,7 +171,7 @@ class Gui(SingleplayerMenu, MultiplayerMenu):
 		   self.show_popup(_("Quit Session"), message, show_cancel_button = True):
 			if self.current is not None:
 				# this can be None if not called from gui (e.g. scenario finished)
-				self.current.hide()
+				self.hide()
 				self.current = None
 			if self.session is not None:
 				self.session.end()
@@ -290,6 +296,12 @@ class Gui(SingleplayerMenu, MultiplayerMenu):
 		self.log.debug("Gui: hiding current: %s", self.current)
 		if self.current is not None:
 			self.current.hide()
+			try:
+				self.current.additional_widget.hide()
+				del self.current.additional_widget
+			except AttributeError, e:
+				pass # only used for some widgets, e.g. pause
+
 
 	def show_dialog(self, dlg, actions, onPressEscape = None, event_map = None):
 		"""Shows any pychan dialog.
@@ -307,7 +319,9 @@ class Gui(SingleplayerMenu, MultiplayerMenu):
 					pychan.internal.get_manager().breakFromMainLoop(onPressEscape)
 					dlg.hide()
 			dlg.capture(_escape, event_name="keyPressed")
+		self.dialog_executed = True
 		ret = dlg.execute(actions)
+		self.dialog_executed = False
 		return ret
 
 	def show_popup(self, windowtitle, message, show_cancel_button = False):
@@ -380,7 +394,7 @@ class Gui(SingleplayerMenu, MultiplayerMenu):
 		old = self.current
 		if (show or hide_old) and old is not None:
 			self.log.debug("Gui: hiding %s", old)
-			old.hide()
+			self.hide()
 		self.log.debug("Gui: setting current to %s", new_widget)
 		self.current = self.widgets[new_widget]
 		if center:
@@ -415,7 +429,7 @@ class Gui(SingleplayerMenu, MultiplayerMenu):
 				details_label.text += _("Unknown savedate\n")
 			else:
 				details_label.text += _("Saved at %s\n") % \
-										time.strftime(_("%H:%M, %A, %B %d"), time.localtime(savegame_info['timestamp']))
+										time.strftime("%H:%M, %A, %B %d", time.localtime(savegame_info['timestamp']))
 			counter = savegame_info['savecounter']
 			# N_ takes care of plural forms for different languages
 			details_label.text += N_("Saved %(counter)d time\n", \

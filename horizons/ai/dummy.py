@@ -20,15 +20,9 @@
 # ###################################################
 import horizons.main
 
-from horizons.entities import Entities
-from horizons.scheduler import Scheduler
-from horizons.util import Point, Callback, WorldObject
-from horizons.constants import RES, UNITS
-from horizons.ext.enum import Enum
-from horizons.ai.generic import AIPlayer
-from horizons.world.units.movingobject import MoveNotPossible
+from horizons.ai.generic import GenericAI
 
 
-class DummyAI(AIPlayer):
+class DummyAI(GenericAI):
 	"""A player that does predefined actions to make sure, that the game code supports
 	AI. It is just for developing and testing."""

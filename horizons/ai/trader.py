@@ -21,19 +21,16 @@
 
 import logging
 
-import horizons.main
-
 from horizons.scheduler import Scheduler
-from horizons.util import Point, Callback, WorldObject, Circle
-from horizons.constants import RES, UNITS, BUILDINGS, TRADER
-from horizons.ai.generic import AIPlayer
+from horizons.util import Callback, WorldObject, Circle
+from horizons.constants import UNITS, BUILDINGS, TRADER
+from horizons.ai.generic import GenericAI
 from horizons.ext.enum import Enum
-from horizons.world.storageholder import StorageHolder
 from horizons.world.units.movingobject import MoveNotPossible
 from horizons.command.unit import CreateUnit
 
 
-class Trader(AIPlayer):
+class Trader(GenericAI):
 	"""A trader represents the free trader that travels around the map with his trading ship(s) and
 	sells resources to players and buys resources from them. This is a very simple form of AI, as it
 	doesn't do any more then drive to a place on water or a branchoffice randomly and then buys and
@@ -42,9 +39,10 @@ class Trader(AIPlayer):
 	@param name: Traders name, also needed for the Player class.
 	@param color: util.Color instance with the traders banner color, also needed for the Player class"""
 
-	shipStates = Enum.get_extended(AIPlayer.shipStates, 'moving_to_branch', 'reached_branch')
+	shipStates = Enum.get_extended(GenericAI.shipStates, 'moving_to_branch', 'reached_branch')
 
 	log = logging.getLogger("ai.trader")
+	regular_player = False
 
 	def __init__(self, session, id, name, color, **kwargs):
 		super(Trader, self).__init__(session, id, name, color, **kwargs)

@@ -34,19 +34,19 @@ class TestBase(TestCase):
 		@param resources: mapping of {resource: amount}
 		@param units: mapping of {unit: amount}
 		"""
-		self.db('INSERT INTO data.production_line (id, time, changes_animation) \
+		self.db('INSERT INTO production_line (id, time, changes_animation) \
 				 VALUES (?, ?, ?)', ident, time, int(changes_animation))
 
 		if resources:
 			self.db.execute_many(
-				'INSERT INTO balance.production (production_line, resource, amount) \
+				'INSERT INTO production (production_line, resource, amount) \
 				 VALUES (?, ?, ?)',
 				[(ident, res, amount) for (res, amount) in resources.items()]
 			)
 
 		if units:
 			self.db.execute_many(
-				'INSERT INTO balance.unit_production (production_line, unit, amount) \
+				'INSERT INTO unit_production (production_line, unit, amount) \
 				 VALUES (?, ?, ?)',
 				[(ident, unit, amount) for (unit, amount) in units.items()]
 			)
@@ -91,7 +91,6 @@ class TestProductionLine(TestBase):
 
 	def test_init_unknown_identifier(self):
 		self.assertRaises(IndexError, ProductionLine, 1)
-		self.assertRaises(IndexError, ProductionLine.load_data, 1)
 
 	def test_alter_production_time(self):
 		self.add_line(1, 10, 0)
@@ -133,10 +132,10 @@ class TestProductionLine(TestBase):
 
 	def test_reset(self):
 		self.add_line(1, 10, 0)
-		self.assertFalse(ProductionLine.data)
+		self.assertFalse(ProductionLine._data)
 
-		ProductionLine.load_data(1)
-		self.assertTrue(ProductionLine.data)
+		ProductionLine.get_const_production_line(1)
+		self.assertTrue(ProductionLine._data)
 
 		ProductionLine.reset()
-		self.assertFalse(ProductionLine.data)
+		self.assertFalse(ProductionLine._data)

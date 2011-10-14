@@ -25,7 +25,7 @@ squiddy (Reiner Gerecke)
 dauerflucher (Andreas Lis)
 Andre (Andre Reichelt)
 Kilian] (Kilian K.)
-eoc (Christopher Oelmueller)
+chrisoelmueller (Christopher Oelmueller)
 
 = Sound and Music Artists
 draikon (Sebastian Ahlen)
@@ -39,6 +39,7 @@ terwarf (Alexander Breidenbroich)
 wentam (Matt Egeler)
 Manthus (Matthias Dittrich)
 inken
+orakeldel
 
 
 == Patchers
@@ -67,6 +68,8 @@ mayanks43 (Campaign system)
 sient (Minimap rectangle)
 hoffi (GUI improvements)
 riidom (Tent and hut variations)
+abeaumont (Two renitent segfaults)
+mtfk (Voice internationalization)
 
 
 == Translators
@@ -80,6 +83,7 @@ CatRoky
 
 = Czech
 Kristian Hynek (Kris_CZ)
+Petr Palička (peca)
 
 = German
 Michael Skiba
@@ -89,6 +93,7 @@ Nikolai Woutlan
 William Cabrera (willicab)
 Álex Plaza
 Fabio Fernández (Catharsius)
+MicMic
 
 = Estonian
 Mihkel Rämmel (RM87)
@@ -98,13 +103,19 @@ Marc Moussa (deathmaster9)
 Vincent Herilier (LiveWire)
 Sebastien Charpentier (seblabel)
 Hugues Fafard (Antagonym)
+Quentin (LawNasK)
+tintou
 
-= Lithuanian
-Mantas Kondrotas (Anielus)
+= Hungarian
+Szontágh Ferenc (ghostarthour)
 
 = Italian
 Fabio Pedretti
 sioux83
+tagarista
+
+= Lithuanian
+Mantas Kondrotas (Anielus)
 
 = Norwegian
 Frode Woldsund (frodus)
@@ -114,19 +125,24 @@ Audun Pers
 = Dutch
 Luth
 Jasper Tepper (Shadow23)
+angellus
 
 = Polish
 Adrian Marcinkowski (Amfidiusz)
 Stanislaw Gackowski (soeb)
 Mateusz Bartkowski (Eugen)
 Natrius
+mtfk
 
 = Portuguese
 Nuno Alves (MadMonk)
 Nelson Marques (nmarques)
+Sérgio Lopes (Knitter)
+bdias
 
 = Brazilian Portuguese
 hpoyatos (Henrique Poyatos)
+claudinei
 
 = Russian
 Sergei Chistyakov (devcode)
@@ -134,12 +150,15 @@ Sergey Stepanov
 Alexander Olkhovskiy (fcxSanya)
 
 = Slovenian
-Andrej Žnidaršič
+Andrej Žnidaršič (andrejz)
 
+= Swedish
+pilen
+Nagrim
 
 
 == Special Thanks
-The whole FIFE team (www.fifengine.de)
+The whole FIFE team (http://fifengine.net)
 mvBarracuda (Martin Vohland)
 Lamoot (Matjaz Lamut)
 LinuxDonald (Thomas Kowaliczek)
@@ -147,5 +166,8 @@ Dreimer (Daniel Reimer)
 hoehrer (Werner Hoehrer)
 mattn (Martin Gerhardry)
 Reiner Prokein (http://reinerstileset.4players.de)
-Alexia and the Widelands team (widelands.org)
+Alexia and the Widelands team (http://widelands.org)
+The team of Battle for Wesnoth (http://wesnoth.org)
+Ivanovic (Nils Kneuper)
 BartK and www.OpenGameArt.org
+www.OpenClipArt.org

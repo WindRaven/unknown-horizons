@@ -21,19 +21,19 @@
 
 import logging
 
-import horizons.main
 from horizons.entities import Entities
 from horizons.command import Command
+from horizons.command.uioptions import TransferResource
 from horizons.util import Point
 from horizons.util.worldobject import WorldObject, WorldObjectNotFound
 from horizons.scenario import CONDITIONS
-from horizons.constants import RES
+from horizons.constants import BUILDINGS, RES
+from horizons.world.player import HumanPlayer
 
 class Build(Command):
 	"""Command class that builds an object."""
-	log = logging.getLogger("command")
 	def __init__(self, building, x, y, island, rotation = 45, \
-	             ship = None, ownerless=False, settlement=None, tearset=None, data=None):
+	             ship = None, ownerless=False, settlement=None, tearset=None, data=None, action_set_id=None):
 		"""Create the command
 		@param building: building class that is to be built or the id of the building class.
 		@param x, y: int coordinates where the object is to be built.
@@ -42,6 +42,7 @@ class Build(Command):
 		@param settlement: settlement worldid or None
 		@param tearset: set of worldids of objs to tear before building
 		@param data: data required for building construction
+		@param action_set_id: use this particular action set, don't choose at random
 		"""
 		if hasattr(building, 'id'):
 			self.building_class = building.id
@@ -57,6 +58,7 @@ class Build(Command):
 		self.settlement = settlement.worldid if settlement is not None else None
 		self.tearset = set() if not tearset else tearset
 		self.data = {} if not data else data
+		self.action_set_id = action_set_id
 
 	def __call__(self, issuer=None):
 		"""Execute the command
@@ -94,7 +96,7 @@ class Build(Command):
 			  Entities.buildings[self.building_class].get_prebuild_data(session, Point(self.x, self.y)) \
 			  )
 
-		for worldid in self.tearset:
+		for worldid in sorted(self.tearset): # make sure iteration is the same order everywhere
 			try:
 				obj = WorldObject.get_object_by_id(worldid)
 				Tear(obj)(issuer=None) # execute right now, not via manager
@@ -107,6 +109,7 @@ class Build(Command):
 			rotation=self.rotation, owner=issuer if not self.ownerless else None, \
 			island=island, \
 			instance=None, \
+		  action_set_id=self.action_set_id, \
 		  **self.data
 		)
 
@@ -131,6 +134,13 @@ class Build(Command):
 
 		# building is now officially built and existent
 		building.start()
+
+		# unload the remaining resources on the human player ship if we just founded a new settlement
+		if building.id == BUILDINGS.BRANCH_OFFICE_CLASS and isinstance(building.owner, HumanPlayer):
+			ship = WorldObject.get_object_by_id(self.ship)
+			for res, amount in [(res, amount) for res, amount in ship.inventory]: # copy the inventory first because otherwise we would modify it while iterating
+				amount = min(amount, building.settlement.inventory.get_free_space_for(res))
+				TransferResource(amount, res, ship, building.settlement).execute(session)
 
 		# NOTE: conditions are not MP-safe! no problem as long as there are no MP-scenarios
 		session.scenario_eventhandler.schedule_check(CONDITIONS.building_num_of_type_greater)
@@ -161,9 +171,11 @@ class Build(Command):
 				return (False, resource)
 		return (True, None)
 
+Command.allow_network(Build)
+Command.allow_network(set)
+
 class Tear(Command):
 	"""Command class that tears an object."""
-	log = logging.getLogger("command")
 	def __init__(self, building):
 		"""Create the command
 		@param building: building that is to be teared.
@@ -175,6 +187,10 @@ class Tear(Command):
 		@param issuer: the issuer of the command
 		"""
 		building = WorldObject.get_object_by_id(self.building)
-		self.log.debug("Tear: tearing down %s", building)
-		building.remove()
+		if building is None or not building.fife_instance:
+			self.log.warning("Tear: attempting to tear down a building that shouldn't exist %s", building)
+		else:
+			self.log.debug("Tear: tearing down %s", building)
+			building.remove()
 
+Command.allow_network(Tear)

@@ -19,23 +19,26 @@
 # 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 # ###################################################
 
+import horizons.main
 from fife.extensions import pychan
 
-import horizons.main
 from horizons.entities import Entities
-
-from horizons.util import livingProperty, LivingObject, PychanChildFinder, Rect, Point
+from horizons.util import livingProperty, LivingObject, PychanChildFinder, Rect
 from horizons.util.python import Callback
 from horizons.gui.mousetools import BuildingTool, SelectionTool
-from horizons.gui.tabs import TabWidget, BuildTab
+from horizons.gui.tabs import TabWidget, BuildTab, DiplomacyTab, SelectMultiTab
 from horizons.gui.widgets.messagewidget import MessageWidget
 from horizons.gui.widgets.minimap import Minimap
 from horizons.gui.widgets.logbook import LogBook
+from horizons.gui.widgets.playersoverview import PlayersOverview
+from horizons.gui.widgets.playerssettlements import PlayersSettlements
+from horizons.gui.widgets.playersships import PlayersShips
 from horizons.gui.widgets.choose_next_scenario import ScenarioChooser
 from horizons.util.gui import LazyWidgetsDict
 from horizons.constants import RES
 from horizons.command.uioptions import RenameObject
 from horizons.command.misc import Chat
+from horizons.gui.tabs.tabinterface import TabInterface
 
 class IngameGui(LivingObject):
 	"""Class handling all the ingame gui events.
@@ -54,13 +57,13 @@ class IngameGui(LivingObject):
 		'status_gold'       : 'resource_bar',
 		'status_extra'      : 'resource_bar',
 		'status_extra_gold' : 'resource_bar',
-	  }
+	}
 
 	def __init__(self, session, gui):
 		super(IngameGui, self).__init__()
 		self.session = session
 		self.main_gui = gui
-		self.widgets = {}
+		self.main_widget = None
 		self.tabwidgets = {}
 		self.settlement = None
 		self.resource_source = None
@@ -73,9 +76,10 @@ class IngameGui(LivingObject):
 		cityinfo.child_finder = PychanChildFinder(cityinfo)
 		cityinfo.position_technique = "center-10:top+5"
 
-		self.logbook = LogBook()
-		self.logbook.add_pause_request_listener(Callback(self.session.speed_pause))
-		self.logbook.add_unpause_request_listener(Callback(self.session.speed_unpause))
+		self.logbook = LogBook(self.session)
+		self.players_overview = PlayersOverview(self.session)
+		self.players_settlements = PlayersSettlements(self.session)
+		self.players_ships = PlayersShips(self.session)
 		self.scenario_chooser = ScenarioChooser(self.session)
 
 		# self.widgets['minimap'] is the guichan gui around the actual minimap,
@@ -106,7 +110,7 @@ class IngameGui(LivingObject):
 		self.widgets['menu_panel'].mapEvents({
 			'destroy_tool' : self.session.destroy_tool,
 			'build' : self.show_build_menu,
-			'helpLink' : self.main_gui.on_help,
+			'diplomacyButton' : self.show_diplomacy_menu,
 			'gameMenuButton' : self.main_gui.toggle_pause,
 			'logbook' : self.logbook.toggle_visibility
 		})
@@ -117,25 +121,23 @@ class IngameGui(LivingObject):
 		self.widgets['status_extra'].child_finder = PychanChildFinder(self.widgets['status_extra'])
 
 		self.message_widget = MessageWidget(self.session, \
-		                                    cityinfo.position[0] + cityinfo.size[0], 5)
+								                        cityinfo.position[0] + cityinfo.size[0], 5)
 		self.widgets['status_gold'].show()
 		self.widgets['status_gold'].child_finder = PychanChildFinder(self.widgets['status_gold'])
 		self.widgets['status_extra_gold'].child_finder = PychanChildFinder(self.widgets['status_extra_gold'])
 
 		# map button names to build functions calls with the building id
 		self.callbacks_build = {}
-		for id,button_name,settler_level in horizons.main.db.get_building_id_buttonname_settlerlvl():
+		for id_,button_name,settler_level in self.session.db.get_building_id_buttonname_settlerlvl():
 			if not settler_level in self.callbacks_build:
 				self.callbacks_build[settler_level] = {}
-			self.callbacks_build[settler_level][button_name] = Callback(self._build, id)
-
-		self.__toggle_ingame_pause_shown = None
+			self.callbacks_build[settler_level][button_name] = Callback(self._build, id_)
 
 	def end(self):
 		self.widgets['menu_panel'].mapEvents({
 			'destroy_tool' : None,
 			'build' : None,
-			'helpLink' : None,
+			'diplomacyButton' : None,
 			'gameMenuButton' : None
 		})
 
@@ -194,7 +196,7 @@ class IngameGui(LivingObject):
 			self.bg_icon_pos = {'gold':(14,83), 'food':(0,6), 'tools':(52,6), 'boards':(104,6), 'bricks':(156,6), 'textiles':(207,6)}
 			self.bgs_shown = {}
 		bg_icon = pychan.widgets.Icon(image=bg_icon_gold if label == 'gold' else bg_icon_res, \
-		                              position=self.bg_icon_pos[label], name='bg_icon_' + label)
+								                  position=self.bg_icon_pos[label], name='bg_icon_' + label)
 
 		if not value:
 			foundlabel = (self.widgets['status_extra_gold'] if label == 'gold' else self.widgets['status_extra']).child_finder(label + '_' + str(2))
@@ -266,7 +268,7 @@ class IngameGui(LivingObject):
 		cityinfo = self.widgets['city_info']
 		cityinfo.mapEvents({
 			'city_name': Callback(self.show_change_name_dialog, self.settlement)
-			})
+		})
 		foundlabel = cityinfo.child_finder('city_name')
 		foundlabel._setText(unicode(self.settlement.name))
 		foundlabel.resizeToContent()
@@ -301,18 +303,53 @@ class IngameGui(LivingObject):
 		self.widgets['menu_panel'].hide()
 		self.widgets['menu_panel'].show()
 
-	def show_build_menu(self):
+	def show_diplomacy_menu(self):
+		# check if the menu is already shown
+		if hasattr(self.get_cur_menu(), 'name') and self.get_cur_menu().name == "diplomacy_widget":
+			self.hide_menu()
+			return
+		players = set(self.session.world.players)
+		players.add(self.session.world.pirate)
+		players.discard(self.session.world.player)
+		players.discard(None) # e.g. when the pirate is disabled
+		if len(players) == 0: # this dialog is pretty useless in this case
+			self.main_gui.show_popup(_("No diplomacy possible"), \
+			                         _("Cannot do diplomacy as there are no other players."))
+			return
+
+		dtabs = []
+		for player in players:
+			dtabs.append(DiplomacyTab(player))
+		tab = TabWidget(self, tabs=dtabs, name="diplomacy_widget")
+		self.show_menu(tab)
+
+	def show_multi_select_tab(self):
+		tab = TabWidget(self, tabs = [SelectMultiTab(self.session)], name = 'select_multi')
+		self.show_menu(tab)
+
+	def show_build_menu(self, update=False):
+		"""
+		@param update: set when build possiblities change (e.g. after settler upgrade)
+		"""
 		# check if build menu is already shown
 		if hasattr(self.get_cur_menu(), 'name') and self.get_cur_menu().name == "build_menu_tab_widget":
 			self.hide_menu()
-			return
+
+			if not update: # this was only a toggle call, don't reshow
+				return
 
 		self.session.cursor = SelectionTool(self.session) # set cursor for build menu
 		self.deselect_all()
-		btabs = [BuildTab(index, self.callbacks_build[index]) for index in \
-		         range(0, self.session.world.player.settler_level+1)]
-		tab = TabWidget(self, tabs=btabs, name="build_menu_tab_widget", \
-								    active_tab=BuildTab.last_active_build_tab)
+
+		if not any( (settlement.owner == self.session.world.player) for settlement in self.session.world.settlements):
+			# player has not built any settlements yet. Accessing the build menu at such a point
+			# indicates a mistake in the mental model of the user. Display a hint.
+			tab = TabWidget(self, tabs=[ TabInterface(widget="buildtab_no_settlement.xml") ])
+		else:
+			btabs = [BuildTab(index, self.callbacks_build[index]) for index in \
+							 range(0, self.session.world.player.settler_level+1)]
+			tab = TabWidget(self, tabs=btabs, name="build_menu_tab_widget", \
+											active_tab=BuildTab.last_active_build_tab)
 		self.show_menu(tab)
 
 	def deselect_all(self):
@@ -410,7 +447,6 @@ class IngameGui(LivingObject):
 	def show_change_name_dialog(self, instance):
 		"""Shows a dialog where the user can change the name of a NamedObject.
 		The game gets paused while the dialog is executed."""
-		self.session.speed_pause()
 		events = {
 			'okButton': Callback(self.change_name, instance),
 			'cancelButton': self._hide_change_name_dialog
@@ -425,7 +461,6 @@ class IngameGui(LivingObject):
 
 	def _hide_change_name_dialog(self):
 		"""Escapes the change_name dialog"""
-		self.session.speed_unpause()
 		self.main_gui.on_escape = self.main_gui.toggle_pause
 		self.widgets['change_name'].hide()
 
@@ -437,34 +472,20 @@ class IngameGui(LivingObject):
 			RenameObject(instance, new_name).execute(self.session)
 		self._hide_change_name_dialog()
 
-	def toggle_ingame_pause(self):
-		"""
-		Called when the hotkey for pause is pressed.
-		Displays pause notification and does the actual (un)pausing.
-		"""
-		if not self.__toggle_ingame_pause_shown:
-			self.session.speed_pause()
-			self.main_gui.on_escape = self.toggle_ingame_pause
-
-			message = _("Hit P to continue the game or click below!")
-			popup = self.main_gui.build_popup(_("Game paused"), message)
-			popup.mapEvents({'okButton': self.toggle_ingame_pause})
-			popup.show()
-			# remember reference to popup for hiding
-			self.__toggle_ingame_pause_shown = popup
-		else:
-			self.main_gui.on_escape = self.main_gui.toggle_pause
-			self.session.speed_unpause()
-
-			self.__toggle_ingame_pause_shown.hide()
-			self.__toggle_ingame_pause_shown = None
-
 	def on_escape(self):
-		if self.logbook.is_visible():
-			self.logbook.hide()
+		if self.main_widget:
+			self.main_widget.hide()
 		else:
 			return False
 		return True
+
+	def on_switch_main_widget(self, widget):
+		"""The main widget has been switched to the given one (possible None)."""
+		if self.main_widget: # close the old one if it exists
+			old_main_widget = self.main_widget
+			self.main_widget = None
+			old_main_widget.hide()
+		self.main_widget = widget
 
 	def display_game_speed(self, text):
 		"""
@@ -481,7 +502,7 @@ class IngameGui(LivingObject):
 		if hasattr(menu, "name"):
 			if menu.name == "build_menu_tab_widget":
 				# player changed and build menu is currently displayed
-				self.show_build_menu()
+				self.show_build_menu(update=True)
 
 	def show_chat_dialog(self):
 		"""Show a dialog where the user can enter a chat message"""

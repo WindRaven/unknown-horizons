@@ -62,6 +62,8 @@
 			<Label text="sient (Minimap rectangle)" />
 			<Label text="hoffi (GUI improvements)" />
 			<Label text="riidom (Hut and tent variations)" />
+			<Label text="abeaumont (Two renitent segfaults)" />
+			<Label text="mtfk (Voice internationalization)" />
 		</VBox>
 	</VBox>
 </VBox>

@@ -19,14 +19,13 @@
 # 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 # ###################################################
 
-import horizons.main
 
 from horizons.world.building.collectingproducerbuilding import CollectingProducerBuilding
 from horizons.world.production.producer import ProducerBuilding
 from horizons.world.building.building import BasicBuilding, SelectableBuilding
 from horizons.world.building.buildable import BuildableSingle, BuildableSingleOnCoast, BuildableSingleOnDeposit
 from horizons.world.building.nature import Field
-from horizons.util import Rect, Circle
+from horizons.util import Rect
 from horizons.util.shapes.radiusshape import RadiusShape, RadiusRect
 from horizons.command.building import Build
 from horizons.scheduler import Scheduler
@@ -37,17 +36,23 @@ from horizons.gui.tabs import ProductionOverviewTab
 class Farm(SelectableBuilding, CollectingProducerBuilding, BuildableSingle, BasicBuilding):
 	max_fields_possible = 8 # only for utilisation calculation
 	tabs = (ProductionOverviewTab,)
-	def _update_capacity_utilisation(self):
-		"""Farm doesn't acctually produce something, so calculate productivity by the number of fields
-		nearby."""
+
+	def _get_providers(self):
 		reach = RadiusRect(self.position, self.radius)
 		providers = self.island.get_providers_in_range(reach, reslist=self.get_needed_resources())
-		providers = [ p for p in providers if isinstance(p, Field) ]
+		return [provider for provider in providers if isinstance(provider, Field)]
 
-		self.capacity_utilisation = float(len(providers))/self.max_fields_possible
+	@property
+	def capacity_utilisation(self):
+		"""
+		Farm doesn't actually produce something, so calculate productivity by the number of fields nearby.
+		"""
+
+		result = float(len(self._get_providers())) / self.max_fields_possible
 		# sanity checks for theoretically impossible cases:
-		self.capacity_utilisation = min(self.capacity_utilisation, 1.0)
-		self.capacity_utilisation = max(self.capacity_utilisation, 0.0)
+		result = min(result, 1.0)
+		result = max(result, 0.0)
+		return result
 
 class Lumberjack(SelectableBuilding, CollectingProducerBuilding, BuildableSingle, BasicBuilding):
 	pass
@@ -70,13 +75,15 @@ class CharcoalBurning(SelectableBuilding, CollectingProducerBuilding, BuildableS
 class SaltPond(SelectableBuilding, CollectingProducerBuilding, BuildableSingleOnCoast, BasicBuilding):
 	pass
 
+class CannonBuilder(SelectableBuilding, CollectingProducerBuilding, BuildableSingle, BasicBuilding):
+	pass
+
 class Fisher(SelectableBuilding, CollectingProducerBuilding, BuildableSingleOnCoast, BasicBuilding):
 
 	@classmethod
 	def _do_select(cls, renderer, position, world, settlement):
 		# Don't call super here, because we don't want to highlight the island
 		# only fish deposits
-		island = world.get_island(position.center())
 		for building in world.get_providers_in_range(RadiusShape(position, cls.radius), res=RES.FISH_ID):
 			renderer.addColored(building._instance, *cls.selection_color)
 			cls._selected_tiles.append(building)
@@ -97,11 +104,21 @@ class Fisher(SelectableBuilding, CollectingProducerBuilding, BuildableSingleOnCo
 		remove_colored = session.view.renderer['InstanceRenderer'].removeColored
 		for tile in cls._selected_tiles:
 			remove_colored(tile._instance)
-		# this acctually means SelectableBuilding._selected_tiles = []
+		# this actually means SelectableBuilding._selected_tiles = []
 		# writing self._selected_tiles = [] however creates a new variable in this instance,
 		# which isn't what we want. Therefore this workaround:
 		while cls._selected_tiles:
 			cls._selected_tiles.pop()
+
+	def get_non_paused_utilisation(self):
+		total = 0
+		productions = self._get_productions()
+		for production in productions:
+			if production.get_age() < PRODUCTION.STATISTICAL_WINDOW * 1.5:
+				return 1
+			state_history = production.get_state_history_times(True)
+			total += state_history[PRODUCTION.STATES.producing.index]
+		return total / float(len(productions))
 
 class SettlerServiceProvider(SelectableBuilding, CollectingProducerBuilding, BuildableSingle, BasicBuilding):
 	"""Class for Churches, School that provide a service-type res for settlers.
@@ -120,6 +137,21 @@ class Mine(SelectableBuilding, ProducerBuilding, BuildableSingleOnDeposit, Basic
 		for res, amount in inventory.iteritems():
 			self.inventory.alter(res, amount)
 
+	@classmethod
+	def get_loading_area(cls, building_id, rotation, pos):
+		if building_id == BUILDINGS.MOUNTAIN_CLASS or building_id == BUILDINGS.IRON_MINE_CLASS:
+			if rotation == 45:
+				return Rect.init_from_topleft_and_size(pos.origin.x, pos.origin.y + 1, 1, 3)
+			elif rotation == 135:
+				return Rect.init_from_topleft_and_size(pos.origin.x + 1, pos.origin.y + pos.height - 1, 3, 1)
+			elif rotation == 225:
+				return Rect.init_from_topleft_and_size(pos.origin.x + pos.width -1, pos.origin.y + 1, 1, 3)
+			elif rotation == 315:
+				return Rect.init_from_topleft_and_size(pos.origin.x + 1, pos.origin.y, 3, 1)
+			assert False
+		else:
+			return pos
+
 	def __init(self, deposit_class, mine_empty_msg_shown):
 		self.__deposit_class = deposit_class
 		self._mine_empty_msg_shown = mine_empty_msg_shown
@@ -127,17 +159,7 @@ class Mine(SelectableBuilding, ProducerBuilding, BuildableSingleOnDeposit, Basic
 		# setup loading area
 		# TODO: for now we assume that a mine building is 5x5 with a 3x1 entry on 1 side
 		#       this needs to be generalised, possibly by defining the loading tiles in the db
-		pos = self.position
-		if self.rotation == 45:
-			self.loading_area = Rect.init_from_topleft_and_size(pos.origin.x, pos.origin.y + 1, 0, 2)
-		elif self.rotation == 135:
-			self.loading_area = Rect.init_from_topleft_and_size(pos.origin.x + 1, pos.origin.y + pos.height - 1, 2, 0)
-		elif self.rotation == 225:
-			self.loading_area = Rect.init_from_topleft_and_size(pos.origin.x + pos.width -1, pos.origin.y + 1, 0, 2)
-		elif self.rotation == 315:
-			self.loading_area = Rect.init_from_topleft_and_size(pos.origin.x + 1, pos.origin.y, 2, 0)
-		else:
-			assert False
+		self.loading_area = self.get_loading_area(deposit_class, self.rotation, self.position)
 
 	@classmethod
 	def get_prebuild_data(cls, session, position):
@@ -169,7 +191,7 @@ class Mine(SelectableBuilding, ProducerBuilding, BuildableSingleOnDeposit, Basic
 		self.__init(deposit_class, mine_empty_msg_shown)
 
 	def _on_production_change(self):
-		super(ProducerBuilding, self)._on_production_change()
+		super(Mine, self)._on_production_change()
 		if self._get_current_state() == PRODUCTION.STATES.waiting_for_res and \
 		   (hasattr(self, "_mine_empty_msg_shown") and \
 		    not self._mine_empty_msg_shown):
@@ -202,7 +224,7 @@ class AnimalFarm(SelectableBuilding, CollectingProducerBuilding, BuildableSingle
 		self.animals = []
 
 		# NOTE: animals have to be created before the AnimalCollector
-		for (animal, number) in horizons.main.db("SELECT unit_id, count FROM data.animals \
+		for (animal, number) in horizons.main.db("SELECT unit_id, count FROM animals \
 		                                    WHERE building_id = ?", self.id):
 			for i in xrange(0, number):
 				Entities.units[animal](self)

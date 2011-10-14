@@ -34,6 +34,7 @@ from horizons.util import ConstRect, Point, WorldObject, ActionSetLoader, decora
 from horizons.constants import RES, LAYERS, GAME
 from horizons.world.building.buildable import BuildableSingle
 from horizons.gui.tabs import EnemyBuildingOverviewTab
+from horizons.command.building import Build
 
 
 class BasicBuilding(AmbientSound, ConcretObject):
@@ -54,23 +55,27 @@ class BasicBuilding(AmbientSound, ConcretObject):
 
 	"""
 	@param x, y: int position of the building.
+	@param rotation: value passed to getInstance
 	@param owner: Player that owns the building.
+	@param level: start in this increment
+	@param action_set_id: use this action set id. None means choose one at random
 	"""
-	def __init__(self, x, y, rotation, owner, island, level=None, **kwargs):
+	def __init__(self, x, y, rotation, owner, island, level=None, action_set_id=None, **kwargs):
 		super(BasicBuilding, self).__init__(x=x, y=y, rotation=rotation, owner=owner, \
 								                        island=island, **kwargs)
-		self.__init(Point(x, y), rotation, owner, level)
+		self.__init(Point(x, y), rotation, owner, level, action_set_id=action_set_id)
 		self.island = island
 		self.settlement = self.island.get_settlement(Point(x, y)) or \
 				self.island.add_settlement(self.position, self.radius, owner) if \
 				owner is not None else None
 
-	def __init(self, origin, rotation, owner, level=None, remaining_ticks_of_month=None):
+	def __init(self, origin, rotation, owner, level=None, remaining_ticks_of_month=None, action_set_id=None):
 		self.owner = owner
 		if level is None:
 			level = 0 if self.owner is None else self.owner.settler_level
 		self.level = level
-		self._action_set_id = self.session.db.get_random_action_set(self.id, self.level)[0]
+		self._action_set_id = action_set_id if action_set_id is not None else \
+		    self.session.db.get_random_action_set(self.id, self.level)[0]
 		self.rotation = rotation
 		if self.rotation in (135, 315): # Rotate the rect correctly
 			self.position = ConstRect(origin, self.size[1]-1, self.size[0]-1)
@@ -79,8 +84,8 @@ class BasicBuilding(AmbientSound, ConcretObject):
 
 		self.loading_area = self.position # shape where collector get resources
 
-		self._instance = self.getInstance(self.session, origin.x, origin.y, rotation=rotation,\
-		                                  action_set_id=self._action_set_id)
+		self._instance, action_set_id = self.getInstance(self.session, origin.x, origin.y, rotation=rotation,\
+		                                                 action_set_id=self._action_set_id)
 		self._instance.setId(str(self.worldid))
 
 		if self.has_running_costs: # Get payout every 30 seconds
@@ -88,7 +93,7 @@ class BasicBuilding(AmbientSound, ConcretObject):
 			run_in = remaining_ticks_of_month if remaining_ticks_of_month is not None else interval
 			Scheduler().add_new_object(self.get_payout, self, \
 			                           run_in=run_in, loops=-1, loop_interval=interval)
-		
+
 		# play ambient sound, if available every 30 seconds
 		if self.session.world.player == self.owner:
 			if self.soundfiles:
@@ -105,6 +110,7 @@ class BasicBuilding(AmbientSound, ConcretObject):
 				self.running_costs_inactive, self.running_costs
 
 	def running_costs_active(self):
+		"""Returns whether the building currently payes the running costs for status 'active'"""
 		return (self.running_costs > self.running_costs_inactive)
 
 	def get_payout(self):
@@ -122,18 +128,18 @@ class BasicBuilding(AmbientSound, ConcretObject):
 
 	def save(self, db):
 		super(BasicBuilding, self).save(db)
-		db("INSERT INTO building (rowid, type, x, y, rotation, health, location, level) \
-		   VALUES (?, ?, ?, ?, ?, ?, ?, ?)", \
+		db("INSERT INTO building (rowid, type, x, y, rotation, location, level) \
+		   VALUES (?, ?, ?, ?, ?, ?, ?)", \
 								                       self.worldid, self.__class__.id, self.position.origin.x, \
 								                       self.position.origin.y, self.rotation, \
-								                       self.health, (self.settlement or self.island).worldid, self.level)
+								                       (self.settlement or self.island).worldid, self.level)
 		if self.has_running_costs:
 			remaining_ticks = Scheduler().get_remaining_ticks(self, self.get_payout)
 			db("INSERT INTO remaining_ticks_of_month(rowid, ticks) VALUES(?, ?)", self.worldid, remaining_ticks)
 
 	def load(self, db, worldid):
 		super(BasicBuilding, self).load(db, worldid)
-		x, y, self.health, location, rotation, level = db.get_building_row(worldid)
+		x, y, location, rotation, level = db.get_building_row(worldid)
 
 		owner_id = db.get_settlement_owner(location)
 		owner = None if owner_id is None else WorldObject.get_object_by_id(owner_id)
@@ -203,6 +209,7 @@ class BasicBuilding(AmbientSound, ConcretObject):
 		@param level: object level. Relevant for choosing an action set
 		@param rotation: rotation of the object. Any of [ 45 + 90*i for i in xrange(0, 4) ]
 		@param action_set_id: can be set if the action set is already known. If set, level isn't considered.
+		@return: tuple (fife_instance, action_set_id)
 		"""
 		assert isinstance(x, int)
 		assert isinstance(y, int)
@@ -214,7 +221,7 @@ class BasicBuilding(AmbientSound, ConcretObject):
 		layer_coords = list((x, y, 0))
 
 		# NOTE:
-		# nobody acctually knows how the code below works.
+		# nobody actually knows how the code below works.
 		# it's for adapting the facing location and instance coords in
 		# different rotations, and works with all quadratic buildings (tested up to 4x4)
 		# for the first unquadratic building (2x4), a hack fix was put into it.
@@ -278,7 +285,11 @@ class BasicBuilding(AmbientSound, ConcretObject):
 				action = action_sets[action_set_id].keys()[0]
 
 		instance.act(action+"_"+str(action_set_id), facing_loc, True)
-		return instance
+		return (instance, action_set_id)
+
+	@classmethod
+	def have_resources(cls, inventory_holders, owner):
+		return Build.check_resources({}, cls.costs, owner, inventory_holders)[0]
 
 	def init(self):
 		"""init the building, called after the constructor is run and the building is positioned (the settlement variable is assigned etc)
@@ -309,17 +320,25 @@ class SelectableBuilding(object):
 		renderer.addOutlined(self._instance, self.selection_color[0], self.selection_color[1], \
 								         self.selection_color[2], 1)
 		if reset_cam:
-			self.session.view.set_location(self.position.origin.to_tuple())
+			self.session.view.center(*self.position.origin.to_tuple())
 		self._do_select(renderer, self.position, self.session.world, self.settlement)
+		self._is_selected = True
 
 	def deselect(self):
-		"""Runs neccassary steps to deselect the building."""
+		"""Runs neccassary steps to deselect the building.
+		Only deselects if this building has been selected."""
+		if not hasattr(self, "_is_selected") or not self._is_selected:
+			return # only deselect selected buildings (simplifies other code)
+		self._is_selected = False
 		renderer = self.session.view.renderer['InstanceRenderer']
 		renderer.removeOutlined(self._instance)
 		renderer.removeAllColored()
 
 	def remove(self):
 		super(SelectableBuilding, self).remove()
+		#TODO move this as a listener
+		if self in self.session.selected_instances:
+			self.session.selected_instances.remove(self)
 		if self.owner == self.session.world.player:
 			self.deselect()
 
@@ -357,7 +376,6 @@ class SelectableBuilding(object):
 	@classmethod
 	@decorators.make_constants()
 	def _do_select(cls, renderer, position, world, settlement):
-		selected_tiles_add = cls._selected_tiles.append
 		if cls.range_applies_only_on_island:
 			island = world.get_island(position.origin)
 			if island is None:

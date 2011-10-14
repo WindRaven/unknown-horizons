@@ -22,11 +22,11 @@
 from horizons.world.resourcehandler import StorageResourceHandler
 from horizons.world.building.collectingbuilding import CollectingBuilding
 from horizons.gui.tabs import BranchOfficeOverviewTab, BuySellTab, InventoryTab, \
-		 MarketPlaceOverviewTab, AccountTab, MarketPlaceSettlerTabSettlerTab
-from horizons.util import WorldObject
+		 MainSquareOverviewTab, AccountTab, \
+		 MainSquareSailorsTab, MainSquarePioneersTab, MainSquareSettlersTab, \
+		 EnemyBranchOfficeOverviewTab
 from building import BasicBuilding, SelectableBuilding
 from buildable import BuildableSingle, BuildableSingleFromShip
-from horizons.constants import STORAGE
 from horizons.world.production.producer import ProducerBuilding
 
 class StorageBuilding(SelectableBuilding, BuildableSingle, StorageResourceHandler, \
@@ -53,19 +53,27 @@ class StorageBuilding(SelectableBuilding, BuildableSingle, StorageResourceHandle
 		super(StorageBuilding, self).remove()
 
 
+	def get_utilisation_history_length(self):
+		return None if not self.get_local_collectors() else self.get_local_collectors()[0].get_utilisation_history_length()
+
+	def get_collector_utilisation(self):
+		collectors = self.get_local_collectors()
+		if not collectors:
+			return None
+		return sum(collector.get_utilisation() for collector in collectors) / float(len(collectors))
+
 class BranchOffice(StorageBuilding, BuildableSingleFromShip):
 	tearable = False
 	tabs = (BranchOfficeOverviewTab, InventoryTab, BuySellTab, AccountTab)
+	enemy_tabs = (EnemyBranchOfficeOverviewTab,)
 	def __init__(self, *args, **kwargs):
 		super(BranchOffice, self).__init__(*args, **kwargs)
 		self.settlement.branch_office = self # we never need to unset this since bo's are indestructible
+		# settlement branch office setting is done at the settlement for loading
 
-	def load(self, db, worldid):
-		super(BranchOffice, self).load(db, worldid)
-		self.settlement.branch_office = self
 
-class MarketPlace(ProducerBuilding, StorageBuilding):
-	tabs = (MarketPlaceOverviewTab, AccountTab, MarketPlaceSettlerTabSettlerTab)
+class MainSquare(ProducerBuilding, StorageBuilding):
+	tabs = (MainSquareOverviewTab, AccountTab, MainSquareSailorsTab, MainSquarePioneersTab, MainSquareSettlersTab)
 
 	def _load_provided_resources(self):
 		"""Storages provide every res.

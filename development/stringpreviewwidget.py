@@ -24,25 +24,28 @@ import yaml
 from horizons.util.gui import load_uh_widget
 from horizons.savegamemanager import SavegameManager
 from horizons.gui.widgets.logbook import LogBook
+from horizons.scheduler import Scheduler
 
 class StringPreviewWidget(object):
 	"""Widget for testing Logbook strings.
 	It provides a list of scenarios, of which the user can select one and display
 	its strings in a logbook"""
-	def __init__(self):
-		self._init_gui()
+	def __init__(self, session):
+		self._init_gui(session)
+		# allow for misc delayed initialisation to finish before pausing
+		Scheduler().add_new_object(session.speed_pause, self, 2)
 
 	def show(self):
 		self._gui.show()
 
-	def _init_gui(self):
+	def _init_gui(self, session):
 		self._gui = load_uh_widget("stringpreviewwidget.xml")
 		self._gui.mapEvents({ 'load' : self.load })
 		self.scenarios = SavegameManager.get_scenarios()
 		self.listbox = self._gui.findChild(name="scenario_list")
 		self.listbox.items = self.scenarios[1]
 
-		self.logbook = LogBook()
+		self.logbook = LogBook(session)
 
 	def load(self):
 		"""Load selected scenario and show strings"""
@@ -67,7 +70,10 @@ class StringPreviewWidget(object):
 						msg = action['arguments'][1]
 						self.logbook.add_entry(unicode(head), unicode(msg), show_logbook=False)
 
-			self.logbook.set_cur_entry(cur_entry)
+			try:
+				self.logbook.set_cur_entry(cur_entry)
+			except ValueError:
+				pass # no entries
 			self.logbook._redraw()
 			self.logbook.show()
 
