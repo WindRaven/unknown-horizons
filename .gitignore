@@ -2,6 +2,12 @@
 *.pyc
 *.po~
 *.nsi
+*.sql~
+*.py~
+*.xml~
+*.yaml~
 Thumbs.db
 build
 content/lang/*
+po/en.po
+po/en-suggest.po

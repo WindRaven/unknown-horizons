@@ -32,7 +32,6 @@ from horizons.world.player import HumanPlayer
 
 class Build(Command):
 	"""Command class that builds an object."""
-	log = logging.getLogger("command")
 	def __init__(self, building, x, y, island, rotation = 45, \
 	             ship = None, ownerless=False, settlement=None, tearset=None, data=None, action_set_id=None):
 		"""Create the command
@@ -97,7 +96,7 @@ class Build(Command):
 			  Entities.buildings[self.building_class].get_prebuild_data(session, Point(self.x, self.y)) \
 			  )
 
-		for worldid in self.tearset:
+		for worldid in sorted(self.tearset): # make sure iteration is the same order everywhere
 			try:
 				obj = WorldObject.get_object_by_id(worldid)
 				Tear(obj)(issuer=None) # execute right now, not via manager
@@ -177,7 +176,6 @@ Command.allow_network(set)
 
 class Tear(Command):
 	"""Command class that tears an object."""
-	log = logging.getLogger("command")
 	def __init__(self, building):
 		"""Create the command
 		@param building: building that is to be teared.

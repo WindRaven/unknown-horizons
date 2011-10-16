@@ -31,7 +31,7 @@ from horizons.constants import RES, BUILDINGS, GAME, SETTLER
 from horizons.world.building.collectingproducerbuilding import CollectingProducerBuilding
 from horizons.world.production.production import SettlerProduction, SingleUseProduction
 from horizons.command.building import Build
-from horizons.util import decorators
+from horizons.util import decorators, Callback
 from horizons.world.pathfinding.pather import StaticPather
 from horizons.command.production import ToggleActive
 
@@ -186,7 +186,7 @@ class Settler(SelectableBuilding, BuildableSingle, CollectingProducerBuilding, B
 		# see http://wiki.unknown-horizons.org/index.php/DD/Economy/Settler_taxing
 
 		# calc taxes http://wiki.unknown-horizons.org/w/Settler_taxing#Formulae
-		happiness_tax_modifier = 0.5 + (float(self.happiness)/100.0)
+		happiness_tax_modifier = 0.5 + (float(self.happiness)/70.0)
 		inhabitants_tax_modifier = float(self.inhabitants) / self.inhabitants_max
 		taxes = self.tax_base * self.settlement.tax_settings[self.level] *  happiness_tax_modifier * inhabitants_tax_modifier
 		real_taxes = int(round(taxes * self.owner.difficulty.tax_multiplier))
@@ -196,13 +196,13 @@ class Settler(SelectableBuilding, BuildableSingle, CollectingProducerBuilding, B
 
 		# decrease happiness http://wiki.unknown-horizons.org/w/Settler_taxing#Formulae
 		difference = 1.0 - self.settlement.tax_settings[self.level]
-		happiness_decrease = 12 * difference - 6* abs(difference)
+		happiness_decrease = 10 * difference - 6* abs(difference)
 		happiness_decrease = int(round(happiness_decrease))
 		# NOTE: this formula was actually designed for a different use case, where the happiness
 		# is calculated from the number of available goods -/+ a certain tax factor.
 		# to simulate the more dynamic, currently implemented approach (where every event changes
 		# the happiness), we simulate discontent of taxes by this:
-		happiness_decrease -= 8
+		happiness_decrease -= 6
 		self.inventory.alter(RES.HAPPINESS_ID, happiness_decrease)
 
 		self._changed()
@@ -273,12 +273,13 @@ class Settler(SelectableBuilding, BuildableSingle, CollectingProducerBuilding, B
 
 	def level_down(self):
 		if self.level == 0: # can't level down any more
-			# remove when this function is done
-			Scheduler().add_new_object(self.remove, self, run_in=0)
 			# replace this building with a ruin
 			command = Build(BUILDINGS.SETTLER_RUIN_CLASS, self.position.origin.x, \
 			                self.position.origin.y, island=self.island, settlement=self.settlement)
-			Scheduler().add_new_object(command, command, run_in=0)
+
+			Scheduler().add_new_object(
+			  Callback.ChainedCallbacks(self.remove, command), # remove, then build new
+			  self, run_in=0)
 
 			self.log.debug("%s: Destroyed by lack of happiness", self)
 			if self.owner == self.session.world.player:

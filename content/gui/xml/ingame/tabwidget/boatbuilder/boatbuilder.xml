@@ -71,7 +71,7 @@
 		[ ] 11t	[ ] 8t	[ ] 2t -->
 	</Container>
 
-	<Container position="25,400" size="260,100" >
+	<Container position="25,400" size="260,100" name="BB_cancel_container">
 	<!-- Cancel task -->
 		<Label position="10,30" name="BB_cancel_build_label" text="Cancel building:"
 			i18n="abort construction of a ship, lose invested resources" />

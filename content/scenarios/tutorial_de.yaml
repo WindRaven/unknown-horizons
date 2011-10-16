@@ -16,6 +16,7 @@ events:
   - arguments: [!!python/unicode 'Build a branch office at the coast, so it is easy
         accessible for other ships like the Free Trader.']
     type: message
+<<<<<<< HEAD
   - arguments: [!!python/unicode 'Welcome to Unknown Horizons!', !!python/unicode 'Lorem
         ipsum dolor sit amet,[br][br]consectetur adipisicing elit, sed do eiusmod
         tempor incididunt ut labore et dolore magna aliqua.[br]Ut enim[br]ad minim
@@ -24,6 +25,30 @@ events:
         velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat
         cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id
         est laborum.']
+=======
+  - arguments: [!!python/unicode 'Willkommen bei Unknown Horizons!', !!python/unicode 'This
+        is your Captain''s log where all important information is stored. A short
+        notification of each task will be provided on the left of the screen.
+
+
+        If you are interested in longer descriptions, your log will hopefully provide
+        all the help you need.
+
+
+        After you close this log, it can be re-opened with the ''Captain''s Log''
+        icon in the top-right corner (below the mini-map, with a sealed document and
+        a feather).
+
+
+        For any suggestions on better wording, topics you would like to have explained
+        or even buggy conditions: Please tell us and we will try to improve the tutorial!
+
+
+        Visit www.unknown-horizons.org for help on how to contact the team!
+
+
+        And now, let''s start the actual game.']
+>>>>>>> b5ba418c9f6fab44c221be9b511cb11f44b29df6
     type: logbook_w
   - arguments: [!!python/unicode 'NEW TASK: SETTLE ON AN ISLAND', !!python/unicode 'Lorem
         ipsum dolor sit amet,[br][br]consectetur adipisicing elit, sed do eiusmod
@@ -40,6 +65,7 @@ events:
   - arguments: [0]
     type: time_passed
 - actions:
+<<<<<<< HEAD
   - arguments: [!!python/unicode 'NEW TASK: BUILD A LUMBERJACK', !!python/unicode 'The
         construction material on your ship got unloaded automatically. You can now
         construct some basic buildings.[br][br]We will start with building a lumberjack.[br][br]This
@@ -49,6 +75,19 @@ events:
         the build menu by either clicking the big icon below the mini map or pressing
         B key.[br][br]The build menu is sorted by increments.[br]You are currently
         in the first increment (the Sailors level) so are offered only the basic buildings.']
+=======
+  - arguments: ["NEUE AUFGABE: HOLZF\xC4LLER BAUEN", "Das Baumaterial auf Eurem Schiff\
+        \ wurde automatisch in Euer Kontor entladen. Somit k\xF6nnt Ihr nun bereits\
+        \ einige elementare Geb\xE4ude errichten.\n\nLasst uns mit dem Bau eines Holzf\xE4\
+        llerlagers beginnen.\n\nDies ist wichtig, da Holz in dieser Stufe das einzige\
+        \ ist, womit Eure Seefahrer ihre Zelte aufschlagen k\xF6nnen.\nDer Fischer\
+        \ braucht ebenfalls Bretter, um sein Ruderboot zu bauen.\n\nUm ein Holzf\xE4\
+        llerlager zu errichten, ben\xF6tigt Ihr das Baumen\xFC. Klickt dazu auf das\
+        \ gro\xDFe Werkzeug-Symbol unter der Weltkarte oder dr\xFCckt die Taste B.\n\
+        \nDas Baumen\xFC ist nach Siedlerstufen sortiert.\nDas bedeutet, dass in der\
+        \ Stufe Seefahrer (mit der Ihr startet) nur grundlegende Geb\xE4ude verf\xFC\
+        gbar sind."]
+>>>>>>> b5ba418c9f6fab44c221be9b511cb11f44b29df6
     type: logbook_w
   - arguments: ['', !!python/unicode 'As your civilization advances, you also gain
         more and more complex buildings.[br][br]For now, select the lumberjack under
@@ -78,6 +117,7 @@ events:
   - arguments: [tutStepDone, 19]
     type: var_lt
 - actions:
+<<<<<<< HEAD
   - arguments: [!!python/unicode 'NEW TASK: FOOD SUPPLY', !!python/unicode 'You will
         need to have some food-producing companies, too, because people in general
         (and especially sailors) are very hungry.[br][br]Available companies in the
@@ -86,6 +126,19 @@ events:
         can place your Hunter close to the lumberjack''s forest.[br][br]It can happen
         that the animals don''t reproduce fast enough or simply hide well.[br][br]Conclusion:
         the hunter is not too reliable if you need continuous supply.']
+=======
+  - arguments: [!!python/unicode 'NEUE AUFGABE: NAHRUNG', "Ihr werdet auch einige\
+        \ Betriebe f\xFCr die Nahrungsproduktion ben\xF6tigen, denn Menschen (und\
+        \ besonders Seeleute) sind f\xFCr gew\xF6hnlich sehr hungrig.\n\nVerf\xFC\
+        gbare Betriebe in der ersten Stufe sind J\xE4ger und Fischer.\n\nDer J\xE4\
+        ger jagt (\xFCberraschenderweise) Tiere im Wald. Daher ben\xF6tigt er B\xE4\
+        ume in seinem Einzugsgebiet.\n\nBeachtet, dass er in der N\xE4he des Holzf\xE4\
+        llers platziert werden kann.\n\nEs kann vorkommen, dass sich die Tiere nicht\
+        \ schnell genug vermehren oder sich einfach gut verstecken. In dieser Zeit\
+        \ wird auch der J\xE4ger nichts produzieren.\n\nFazit: Der J\xE4ger ist also\
+        \ nicht so verl\xE4sslich, wenn Ihr eine kontinuierliche Versorgung ben\xF6\
+        tigt."]
+>>>>>>> b5ba418c9f6fab44c221be9b511cb11f44b29df6
     type: logbook_w
   - arguments: ['', !!python/unicode 'The Fisher needs a coastal building site like
         the branch office and a fish school in range.[br][br]He will build a small
@@ -169,6 +222,7 @@ events:
   - arguments: [tutStepDone, 28]
     type: var_lt
 - actions:
+<<<<<<< HEAD
   - arguments: ['', !!python/unicode 'Let''s have a look at the tent overview tab.[br]You
         can see[br]* the happiness of these residents,[br]* the taxes they pay and[br]*
         the resources they demand.[br][br]If their demands are fulfilled, happiness
@@ -178,6 +232,18 @@ events:
         also change the global tax settings here, too.[br][br]TASK: Build at least
         three additional tents.[br][br]TIP: Holding down SHIFT eases constructing
         multiple buildings of the same kind.']
+=======
+  - arguments: ['', "Wir sollten uns nun den \xDCbersichts-Tab eines Zelts ansehen.\n\
+        Es wird angezeigt:\n* die Zufriedenheit dieser Bewohner,\n* die H\xF6he der\
+        \ Steuern, die sie zahlen und\n* die Waren, nach denen sie verlangen.\n\n\
+        Ist dieser Bedarf gedeckt, werden Zufriedenheit und damit Eure Steuereinnahmen\
+        \ steigen. Ist er es nicht, sinkt beides.\nAb einem gewissen Punkt werden\
+        \ die Einwohner wirklich sauer, sodass sie ihre Koffer packen, aus der Stadt\
+        \ verschwinden und nur noch eine unbewohnbare Ruine zur\xFCcklassen.\n\nBeachtet,\
+        \ dass Ihr auch in diesem Tab an der Steuerschraube drehen k\xF6nnt.\n\nAUFGABE:\
+        \ Erbaut noch drei weitere Zelte.\nTIPP: Mit gedr\xFCckter SHIFT-Taste wird\
+        \ das Bauen von mehreren Geb\xE4uden des selben Typs erleichtert."]
+>>>>>>> b5ba418c9f6fab44c221be9b511cb11f44b29df6
     type: logbook
   - arguments: [!!python/unicode 'Build at least three additional tents and connect
         them to the main square.']
@@ -394,6 +460,7 @@ events:
   - arguments: [tutStepDone, 49]
     type: var_lt
 - actions:
+<<<<<<< HEAD
   - arguments: [!!python/unicode 'NEW TASK: BUILD STORAGE', !!python/unicode 'Did
         you watch your lumberjack recently?[br][br]Since your branch office does not
         have unlimited space to store goods, collectors will stop fetching goods from
@@ -406,6 +473,21 @@ events:
         this ''break'' mode is enabled (we call it ''Decommissioning''), the running
         costs you pay for the building will decrease. They won''t be zero, but still
         lower than if you keep the company producing.']
+=======
+  - arguments: [!!python/unicode 'NEUE AUFGABE: LAGER', "Habt Ihr in letzter Zeit\
+        \ Euer Holzf\xE4llerlager betrachtet?\n\nDa das Kontor nur begrenzt viel Platz\
+        \ hat, um G\xFCter aufzubewahren, werden G\xFCter nicht mehr von Euren Betrieben\
+        \ in ein Lager transportiert, sobald der Bestand voll ist. Wenn also kein\
+        \ Siedler vor kurzem sein Zelt ausbauen wollte, befindet sich wahrscheinlich\
+        \ eine Menge Bretter im Lager und Euer Holzf\xE4llerlager liegt brach.\nDiese\
+        \ Situation kann mit zwei Ma\xDFnahmen verbessern, die wir uns nun anschauen\
+        \ wollen.\n\nAlle Betriebe bieten die M\xF6glichkeit, gar nicht zu arbeiten.\
+        \ Das h\xF6rt sich vielleicht merkw\xFCrdig an, aber klickt einmal auf das\
+        \ Zahnrad, welches sich zum Beispiel in der \xDCbersicht des Holzf\xE4llerlagers\
+        \ findet.\nWenn dieser 'Stillgelegt'-Modus aktiviert ist, werden die laufenden\
+        \ Kosten f\xFCr dieses Geb\xE4ude sinken. Sie werden vielleicht nicht immer\
+        \ auf null sinken, aber sie sind dennoch geringer, als wenn der Betrieb weiterarbeitete."]
+>>>>>>> b5ba418c9f6fab44c221be9b511cb11f44b29df6
     type: logbook_w
   - arguments: ['', !!python/unicode 'This means that you can save money when you
         temporarily do not need a company and do not want to tear it down, either.[br][br]Another
