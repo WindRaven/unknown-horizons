@@ -104,3 +104,4 @@ else:
 	print 'debug.printTree(<object>):   print a tree of an object (the properties, recursive)'
 	print "debug.cmd('name', *args):    create a command and execute it through the manager ex: debug.cmd('unit.Move', game.main.session.selected_instance, x, y)"
 	print ''
+#this is a comment:
