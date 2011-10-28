@@ -17,7 +17,7 @@
 			<Icon name="building_image" position="30,0"/>
 
 			<!-- happiness and residents -->
-			<Label name='name' position="0,140" text="" />
+			<TooltipLabel name='name' position="0,140" text="" tooltip="" />
 			<TooltipIcon name="happiness_label" position="0,166"
 				image="content/gui/icons/resources/running_costs.png"
 				tooltip="Happiness" />
@@ -52,4 +52,4 @@
 
 		</Container>
 	</Container>
-</Container>
+ </Container>

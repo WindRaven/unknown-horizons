@@ -371,6 +371,7 @@ class SettlerOverviewTab(OverviewTab):
 		                                               self.instance.inhabitants,
 		                                               self.instance.inhabitants_max)
 		self.widget.child_finder('taxes').text = unicode(self.instance.last_tax_payed)
+		#self.widget.child_finder('name').tooltip = unicode(self.instance.inhabitant_name)
 		self.update_consumed_res()
 		self.widget.findChild(name="headline").text = unicode(self.instance.settlement.name)
 		super(SettlerOverviewTab, self).refresh()
