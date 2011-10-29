@@ -152,6 +152,15 @@ class ShipOverviewTab(OverviewTab):
 		health_widget.init(self.instance)
 		self.add_remove_listener(health_widget.remove)
 		self._init_combat()
+		
+	def init_dummy_gui(self):
+		from horizons.gui.widgets.diplomacyoverview import DiplomacyOverview
+		if not hasattr(self, 'diplo_menu'):
+			self.diplo_menu = DiplomacyOverview(self.instance.session)
+		if self.diplo_menu.is_visible():
+			self.diplo_menu.hide()
+		else:
+			self.diplo_menu.show()
 
 	def _init_combat(self): # no combat
 		weapons_wdg = self.widget.child_finder('weapon_storage')
@@ -203,7 +212,9 @@ class ShipOverviewTab(OverviewTab):
 		#TODO the tooltip should actually hide on its own. Ticket #1096
 		cb = Callback.ChainedCallbacks(cb1, cb2)
 		events['foundSettlement/mouseExited'] = cb
+		events['myFirstButton'] = self.init_dummy_gui
 		self.widget.mapEvents(events)
+		#self.whatever()
 		super(ShipOverviewTab, self).refresh()
 
 

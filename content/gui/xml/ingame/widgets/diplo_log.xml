@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<Container name="diplo_log" size="1020,580" position="-20,0">
+<Icon image="content/gui/images/background/book.png" position="100,0" />
+
+	<!-- left side -->
+<!-- Here pickbelts # 1, 3 and 5 with the texts "Captain's Log", "Game Messages"
+and "Chat Messages" will get added later. Refer to gui/credits/*.xml for info-->
+
+<VBox max_size="350,508" min_size="350,508" position="175,40" padding="2">
+		
+</VBox>
+
+	<!-- right side -->
+
+<VBox max_size="350,508" min_size="350,508" position="520,40" padding="2">
+
+	<HBox> <Spacer min_size="275"/>
+		<CancelButton tooltip="Leave Captain's log" />
+	</HBox>
+
+</VBox>
+
+</Container>
