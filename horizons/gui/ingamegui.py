@@ -322,8 +322,11 @@ class IngameGui(LivingObject):
 			return
 
 		dtabs = []
-		for player in players:
+		#dtabs.append(DiplomacyTab(players[0])
+		for player in players:	
 			dtabs.append(DiplomacyTab(player))
+		#for player in players:	
+			#dtabs.append(DiplomacyTab(player))
 		tab = TabWidget(self, tabs=dtabs, name="diplomacy_widget")
 		self.show_menu(tab)
 

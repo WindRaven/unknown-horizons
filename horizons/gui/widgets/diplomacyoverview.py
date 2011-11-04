@@ -22,7 +22,7 @@
 from horizons.util.gui import load_uh_widget
 from horizons.util import Callback
 from horizons.util.changelistener import metaChangeListenerDecorator
-
+import math
 class DiplomacyOverview(object):
 	"""Implementation of the logbook as described here:
 	http://wiki.unknown-horizons.org/w/Message_System
@@ -40,9 +40,23 @@ class DiplomacyOverview(object):
 		# don't show if there are no messages
 		#if len(self._messages) == 0:
 		#	return
+		
+		players = set(self.session.world.players)
+		players.add(self.session.world.pirate)
+		players.discard(self.session.world.player)
+		players.discard(None) # e.g. when the pirate is disabled
+		
 		self._gui.show()
 		self.session.ingame_gui.on_switch_main_widget(self)
 		self.session.speed_pause(True)
+		angle_incr = math.pi / len(players)
+		angle = 0
+		r = 20
+		print angle_incr
+		for player in players:
+			angle = angle + angle_incr
+			print (round(math.sin(angle) * r ) ,round ( math.cos(angle) * r ) )
+			print player.color.name 
 
 	def hide(self):
 		if not self._hiding_widget:
