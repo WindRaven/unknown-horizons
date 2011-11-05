@@ -19,10 +19,12 @@
 # 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 # ###################################################
 
+from fife.extensions import pychan
 from horizons.util.gui import load_uh_widget
 from horizons.util import Callback
 from horizons.util.changelistener import metaChangeListenerDecorator
 import math
+
 class DiplomacyOverview(object):
 	"""Implementation of the logbook as described here:
 	http://wiki.unknown-horizons.org/w/Message_System
@@ -48,15 +50,26 @@ class DiplomacyOverview(object):
 		
 		self._gui.show()
 		self.session.ingame_gui.on_switch_main_widget(self)
-		self.session.speed_pause(True)
-		angle_incr = math.pi / len(players)
+		
+		angle_incr = 2 * math.pi / len(players)
 		angle = 0
-		r = 20
-		print angle_incr
+		r = 50
+		icon_path='content/gui/images/tabwidget/emblems/emblem_%s.png'
+		
 		for player in players:
-			angle = angle + angle_incr
-			print (round(math.sin(angle) * r ) ,round ( math.cos(angle) * r ) )
-			print player.color.name 
+			x = round ( math.cos(angle) * r )
+			y = round( math.sin(angle) * r )
+			container = self._gui.findChild(name = "left_overview")
+			x_offset = round(container.height / 2)
+			y_offset = round(container.width / 2)
+			color = player.color.name
+			icon = pychan.Icon(image = icon_path % color, position = (int(x + x_offset), int(y + y_offset)))
+			container.addChild(icon)
+			#print (round(math.sin(angle) * r ) ,round ( math.cos(angle) * r ) )
+			angle += angle_incr
+			
+			#icon( image = icon_path % color, x = x, y = y)
+			
 
 	def hide(self):
 		if not self._hiding_widget:

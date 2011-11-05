@@ -6,18 +6,18 @@
 <!-- Here pickbelts # 1, 3 and 5 with the texts "Captain's Log", "Game Messages"
 and "Chat Messages" will get added later. Refer to gui/credits/*.xml for info-->
 
-<VBox max_size="350,508" min_size="350,508" position="175,40" padding="2">
-		
-</VBox>
+<Container name = "left_overview" size="350,508" position="175,40">
+			<Label text="ANA ARE MERE" position="100,100"/>
+</Container>
 
 	<!-- right side -->
 
-<VBox max_size="350,508" min_size="350,508" position="520,500" padding="2"><!--520 500 left diplo 50 250 right diplo 400 250 -->
+<Container name="right_overview " size="350,508" position="520,500" ><!--520 500 left diplo 50 250 right diplo 400 250 -->
 
 	<HBox> <Spacer min_size="275"/>
-		<CancelButton tooltip="Leave Captain's log" />
+		<CancelButton tooltip="Exit" />
 	</HBox>
 
-</VBox>
+</Container>
 
 </Container>
