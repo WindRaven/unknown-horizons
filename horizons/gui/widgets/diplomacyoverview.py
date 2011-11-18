@@ -53,15 +53,15 @@ class DiplomacyOverview(object):
 		
 		angle_incr = 2 * math.pi / len(players)
 		angle = 0
-		r = 50
+		r = 140
 		icon_path='content/gui/images/tabwidget/emblems/emblem_%s.png'
 		
 		for player in players:
 			x = round ( math.cos(angle) * r )
 			y = round( math.sin(angle) * r )
 			container = self._gui.findChild(name = "left_overview")
-			x_offset = round(container.height / 2)
-			y_offset = round(container.width / 2)
+			x_offset = round(container.height / 3.5)
+			y_offset = round(container.width / 1.7)
 			color = player.color.name
 			icon = pychan.Icon(image = icon_path % color, position = (int(x + x_offset), int(y + y_offset)))
 			container.addChild(icon)
