@@ -31,6 +31,7 @@ from horizons.gui.widgets.messagewidget import MessageWidget
 from horizons.gui.widgets.minimap import Minimap
 from horizons.gui.widgets.logbook import LogBook
 from horizons.gui.widgets.playersoverview import PlayersOverview
+from horizons.gui.widgets.diplomacyoverview import DiplomacyOverview
 from horizons.gui.widgets.playerssettlements import PlayersSettlements
 from horizons.gui.widgets.playersships import PlayersShips
 from horizons.gui.widgets.choose_next_scenario import ScenarioChooser
@@ -88,6 +89,7 @@ class IngameGui(LivingObject):
 		cityinfo.position_technique = "%s%+d:%s%+d" % (x, x_offset, y, y_offset) # usually "center-10:top+4"
 
 		self.logbook = LogBook(self.session)
+		self.diplomacy_overview = DiplomacyOverview(self.session)
 		self.players_overview = PlayersOverview(self.session)
 		self.players_settlements = PlayersSettlements(self.session)
 		self.players_ships = PlayersShips(self.session)
@@ -122,7 +124,7 @@ class IngameGui(LivingObject):
 		self.widgets['menu_panel'].mapEvents({
 			'destroy_tool' : self.session.destroy_tool,
 			'build' : self.show_build_menu,
-			'diplomacyButton' : self.show_diplomacy_menu,
+			'diplomacyButton' : self.diplomacy_overview.toggle_visibility,
 			'gameMenuButton' : self.main_gui.toggle_pause,
 			'logbook' : self.logbook.toggle_visibility
 		})
@@ -332,13 +334,13 @@ class IngameGui(LivingObject):
 			                         _("Cannot do diplomacy as there are no other players."))
 			return
 
-		dtabs = []
+		#dtabs = []
 		#dtabs.append(DiplomacyTab(players[0])
-		for player in players:	
-			dtabs.append(DiplomacyTab(player))
+		#for player in players:	
+		#	dtabs.append(DiplomacyTab(player))
 		#for player in players:	
 			#dtabs.append(DiplomacyTab(player))
-		tab = TabWidget(self, tabs=dtabs, name="diplomacy_widget")
+		#tab = TabWidget(self, tabs=dtabs, name="diplomacy_widget")
 		self.show_menu(tab)
 
 	def show_multi_select_tab(self):
