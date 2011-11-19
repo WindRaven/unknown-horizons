@@ -56,19 +56,28 @@ class DiplomacyOverview(object):
 		r = 140
 		icon_path='content/gui/images/tabwidget/emblems/emblem_%s.png'
 		
-		for player in players:
-			x = round ( math.cos(angle) * r )
-			y = round( math.sin(angle) * r )
-			container = self._gui.findChild(name = "left_overview")
-			x_offset = round(container.height / 3.5)
-			y_offset = round(container.width / 1.7)
-			color = player.color.name
-			icon = pychan.Icon(image = icon_path % color, position = (int(x + x_offset), int(y + y_offset)))
-			container.addChild(icon)
-			#print (round(math.sin(angle) * r ) ,round ( math.cos(angle) * r ) )
-			angle += angle_incr
+		container_left = self._gui.findChild(name = "left_overview")
+		container_right = self._gui.findChild(name = "right_overview")
 			
-			#icon( image = icon_path % color, x = x, y = y)
+		x_offset_left = round(container_left.height / 3.5)
+		y_offset_left = round(container_left.width / 1.7)
+			
+		x_offset_right = round(container_right.height / 3.5)
+		y_offset_right = round(container_right.width / 1.7)
+		
+		for player in players:
+			
+			x = round ( math.cos(angle) * r )
+			y = round( math.sin(angle) * r )	
+			color = player.color.name
+			
+			icon_left = pychan.Icon(image = icon_path % color, position = (int(x + x_offset_left), int(y + y_offset_left)))
+			container_left.addChild(icon_left)
+			
+			icon_right = pychan.Icon(image = icon_path % color, position = (int(x + x_offset_right), int(y + y_offset_right)))
+			container_right.addChild(icon_right)
+	
+			angle += angle_incr
 			
 
 	def hide(self):

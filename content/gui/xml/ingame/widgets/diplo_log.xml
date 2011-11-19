@@ -12,10 +12,10 @@ and "Chat Messages" will get added later. Refer to gui/credits/*.xml for info-->
 
 	<!-- right side -->
 
-<Container name="right_overview " size="350,508" position="520,500" ><!--520 500 left diplo 50 250 right diplo 400 250 -->
+<Container name="right_overview" size="350,508" position="520,40" ><!--520 500 left diplo 50 250 right diplo 400 250 -->
 
-	<HBox> <Spacer min_size="275"/>
-		<CancelButton tooltip="Exit" />
+	<HBox> <Spacer min_size="275" />
+		<CancelButton position="520,400" tooltip="Exit" />
 	</HBox>
 
 </Container>
