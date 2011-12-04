@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<!--TODO-->
+<Container size="245,70">
+	
+	<HBox position="50,7">
+		<ToggleImageButton name="enemy" border_size="0" position="175,480"
+			inactive_image="content/gui/icons/units/stances/aggressive_gr.png"
+			up_image="content/gui/icons/units/stances/aggressive.png"
+			down_image="content/gui/icons/units/stances/aggressive.png"
+			hover_image="content/gui/icons/units/stances/aggressive.png"
+			comment="Description of combat stance (how units behave when fighting)"
+			tooltip="Enemy" />
+		<ToggleImageButton name="neutral" border_size="0" position="175,480"
+			inactive_image="content/gui/icons/units/stances/hold_ground_gr.png"
+			up_image="content/gui/icons/units/stances/hold_ground.png"
+			down_image="content/gui/icons/units/stances/hold_ground.png"
+			hover_image="content/gui/icons/units/stances/hold_ground.png"
+			comment="Description of combat stance (how units behave when fighting)"
+			tooltip="Neutral" />
+		<ToggleImageButton name="ally" border_size="0" position="175,480"
+			inactive_image="content/gui/icons/units/stances/none_gr.png"
+			up_image="content/gui/icons/units/stances/none.png"
+			down_image="content/gui/icons/units/stances/none.png"
+			hover_image="content/gui/icons/units/stances/none.png"
+			comment="Description of combat stance (how units behave when fighting)"
+			tooltip="Ally" />
+			
+	</HBox>
+</Container>
+

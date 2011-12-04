@@ -47,7 +47,7 @@ class DiplomacyOverview(object):
 		players.add(self.session.world.pirate)
 		players.discard(self.session.world.player)
 		players.discard(None) # e.g. when the pirate is disabled
-		
+		player = self.session.world.player
 		self._gui.show()
 		self.session.ingame_gui.on_switch_main_widget(self)
 		
@@ -58,13 +58,19 @@ class DiplomacyOverview(object):
 		
 		container_left = self._gui.findChild(name = "left_overview")
 		container_right = self._gui.findChild(name = "right_overview")
-			
+		
+		#x_offset and y_offset are the centers of each circles	
 		x_offset_left = round(container_left.height / 3.5)
 		y_offset_left = round(container_left.width / 1.7)
-			
+	
+		icon_center_left = pychan.Icon(image = icon_path % player.color.name,
+		 position = (int(x_offset_left), int(y_offset_left)))
+		container_left.addChild(icon_center_left)
+		
 		x_offset_right = round(container_right.height / 3.5)
 		y_offset_right = round(container_right.width / 1.7)
 		
+		#draws other player buttons on both sides
 		for player in players:
 			
 			x = round ( math.cos(angle) * r )
