@@ -8,7 +8,7 @@ and "Chat Messages" will get added later. Refer to gui/credits/*.xml for info-->
 
 <Container name = "left_overview" size="350,508" position="175,40"><!-- 508-->
 
-	<Container name = "diplo_widget" size="245,50" position="50,225" />
+	<Container name = "diplo_widget" size="245,50" position="55,250" />
 	
 			
 </Container>

@@ -102,13 +102,6 @@ class DiplomacyOverview(object):
 		container_left = self._gui.findChild(name = "left_overview")
 		container_right = self._gui.findChild(name = "right_overview")
 		
-		
-		#diplomacy_widget = DiplomacyWidget()
-		#diplomacy_widget.init(list(self.players)[0])
-		#container_left.addChild(diplomacy_widget)
-		
-		
-		
 		self.diplomacy_widgets  = {}
 		for player in self.players:
 			diplomacy_widget = DiplomacyWidget()
@@ -120,18 +113,23 @@ class DiplomacyOverview(object):
 		
 		angle_incr = 2 * math.pi / len(self.players)
 		angle = 0
-		r = 140
+		r = 135
 		icon_path='content/gui/images/tabwidget/emblems/emblem_%s.png'
 		
 		#x_offset and y_offset are the centers of each circles	
-		x_offset_left = round(container_left.height / 3.5)
-		y_offset_left = round(container_left.width / 1.8)
+		x_offset_left = round(container_left.height / 3.8)
+		y_offset_left = round(container_left.width / 1.7)
 	
-		#icon_center_left = pychan.Icon(image = icon_path % self.player.color.name,
-		#position = (int(x_offset_left), int(y_offset_left)))
-		#container_left.addChild(icon_center_left)
+		color = self.player.color.name,
 		
-		x_offset_right = round(container_right.height / 3.5)
+		player_widget = load_uh_widget('playerbuttonwidget.xml')
+		icon = pychan.Icon(image = icon_path % color, position = (10, 10))
+		player_widget.findChild(name = 'playerbutton').tooltip = self.player.name
+		player_widget.findChild(name="icon").addChild(icon)
+		player_widget.position = ((int(x_offset_left), int(y_offset_left)))
+		container_left.addChild(player_widget)
+		
+		x_offset_right = round(container_right.height / 3.8)
 		y_offset_right = round(container_right.width / 1.7)
 		
 		#draws other player buttons on both sides
@@ -140,6 +138,8 @@ class DiplomacyOverview(object):
 			x = round ( math.cos(angle) * r )
 			y = round( math.sin(angle) * r )	
 			color = player.color.name
+			
+			#draws left side
 			player_button_widget = load_uh_widget('playerbuttonwidget.xml')
 			icon = pychan.Icon(image = icon_path % color, position = (10, 10))
 			player_button_widget.findChild(name = 'playerbutton').tooltip = player.name
@@ -148,14 +148,14 @@ class DiplomacyOverview(object):
 			player_button_widget.position = ((int(x + x_offset_left), int(y + y_offset_left)))
 			container_left.addChild(player_button_widget)
 			
-			#icon_left = pychan.Icon(image = icon_path % color, position = (int(x + x_offset_left), int(y + y_offset_left)))
-			#container_left.addChild(icon_left)
-			
-			
-			
-			icon_right = pychan.Icon(image = icon_path % color, position = (int(x + x_offset_right), int(y + y_offset_right)))
-			container_right.addChild(icon_right)
-	
+			#draws right side no need for mapping
+			player_widget = load_uh_widget('playerbuttonwidget.xml')
+			icon = pychan.Icon(image = icon_path % color, position = (10, 10))
+			player_widget.findChild(name = 'playerbutton').tooltip = player.name
+			player_widget.findChild(name="icon").addChild(icon)
+			player_widget.position = ((int(x + x_offset_right), int(y + y_offset_right)))
+			container_right.addChild(player_widget)
+				
 			angle += angle_incr
 	
 	def _redraw(self):
