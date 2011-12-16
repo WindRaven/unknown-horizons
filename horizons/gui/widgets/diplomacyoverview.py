@@ -138,7 +138,7 @@ class DiplomacyOverview(object):
 			color = player.color.name
 			player_button_widget = load_uh_widget('playerbuttonwidget.xml')
 			icon = pychan.Icon(image = icon_path % color, position = (10, 10))
-			
+			player_button_widget.findChild(name = 'playerbutton').tooltip = player.name
 			player_button_widget.findChild(name="icon").addChild(icon)
 			player_button_widget.mapEvents({ 'playerbutton' : Callback(self.show_diplomacy_widget, player) } )
 			player_button_widget.position = ((int(x + x_offset_left), int(y + y_offset_left)))
