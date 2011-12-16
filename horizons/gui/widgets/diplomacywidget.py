@@ -3,7 +3,7 @@ from horizons.util.gui import load_uh_widget, get_res_icon
 from horizons.util import Callback
 from horizons.gui.widgets import TooltipIcon
 from horizons.gui.tabs.tabinterface import TabInterface
-
+#from horizons.gui.widgets.diplomacyoverview import DiplomacyOverview
 from horizons.command.diplomacy import AddAllyPair, AddNeutralPair, AddEnemyPair
 
 class DiplomacyWidget(pychan.widgets.Container):
@@ -64,3 +64,5 @@ class DiplomacyWidget(pychan.widgets.Container):
 		AddEnemyPair(self.player, self.local_player).execute(self.player.session)
 		self.toggle_diplomacy_state()
 
+
+		

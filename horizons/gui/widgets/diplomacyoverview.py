@@ -24,7 +24,6 @@ from horizons.util.gui import load_uh_widget
 from horizons.util import Callback
 from horizons.util.changelistener import metaChangeListenerDecorator
 from horizons.gui.widgets.diplomacywidget import DiplomacyWidget
-
 from horizons.gui.widgets.unitoverview import StanceWidget
 
 import math
@@ -114,7 +113,7 @@ class DiplomacyOverview(object):
 			diplomacy_widget.init(player)
 			self.diplomacy_widgets[player] = diplomacy_widget 
 			
-		self.show_diplomacy_widget(list(self.players)[1])
+		#self.show_diplomacy_widget(list(self.players)[1])
 		
 		angle_incr = 2 * math.pi / len(self.players)
 		angle = 0
@@ -139,8 +138,15 @@ class DiplomacyOverview(object):
 			y = round( math.sin(angle) * r )	
 			color = player.color.name
 			
+			player_button_widget = PlayerButtonWidget((int(x + x_offset_left), int(y + y_offset_left))) 
+			player_button_widget.init(player)
+			player_button_widget.mapEvents({ 'playerbutton':self.show_diplomacy_widget(player) } )
+			container_left.addChild(player_button_widget)
+			
 			icon_left = pychan.Icon(image = icon_path % color, position = (int(x + x_offset_left), int(y + y_offset_left)))
 			container_left.addChild(icon_left)
+			
+			
 			
 			icon_right = pychan.Icon(image = icon_path % color, position = (int(x + x_offset_right), int(y + y_offset_right)))
 			container_right.addChild(icon_right)
@@ -151,4 +157,15 @@ class DiplomacyOverview(object):
 		"""Redraws gui. Necessary when current  has changed."""
 		pass
 
-
+class PlayerButtonWidget(pychan.widgets.Container):
+	def __init__(self, _position):
+		super(PlayerButtonWidget, self).__init__(size=(245,50),position=_position)
+		widget = load_uh_widget('playerbuttonwidget.xml')
+		self.addChild(widget)
+		self.widget = widget
+		
+		
+	def init(self,  player):
+		pass
+		#self.widget.mapEvents({
+			#'playerbutton' : DiplomacyOverview.show_diplomacy_widget(self, player)})
