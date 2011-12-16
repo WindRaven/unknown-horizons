@@ -70,7 +70,10 @@ class DiplomacyOverview(object):
 		container_diplo_widget = self._gui.findChild(name = "diplo_widget")
 		container_diplo_widget.removeAllChildren()
 		container_diplo_widget.addChild(self.diplomacy_widgets[player])
-
+		#has to redraw the gui
+		self.toggle_visibility()
+		self.toggle_visibility()
+		
 	def hide(self):
 		if not self._hiding_widget:
 			self._hiding_widget = True
@@ -111,8 +114,9 @@ class DiplomacyOverview(object):
 			diplomacy_widget = DiplomacyWidget()
 			diplomacy_widget.init(player)
 			self.diplomacy_widgets[player] = diplomacy_widget 
-			
-		#self.show_diplomacy_widget(list(self.players)[1])
+		
+		#for player in self.players:	
+			#self.show_diplomacy_widget(player)
 		
 		angle_incr = 2 * math.pi / len(self.players)
 		angle = 0
