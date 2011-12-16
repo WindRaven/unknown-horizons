@@ -70,7 +70,6 @@ class DiplomacyOverview(object):
 		container_diplo_widget = self._gui.findChild(name = "diplo_widget")
 		container_diplo_widget.removeAllChildren()
 		container_diplo_widget.addChild(self.diplomacy_widgets[player])
-		
 
 	def hide(self):
 		if not self._hiding_widget:
@@ -122,7 +121,7 @@ class DiplomacyOverview(object):
 		
 		#x_offset and y_offset are the centers of each circles	
 		x_offset_left = round(container_left.height / 3.5)
-		y_offset_left = round(container_left.width / 1.7)
+		y_offset_left = round(container_left.width / 1.8)
 	
 		#icon_center_left = pychan.Icon(image = icon_path % self.player.color.name,
 		#position = (int(x_offset_left), int(y_offset_left)))
@@ -137,14 +136,16 @@ class DiplomacyOverview(object):
 			x = round ( math.cos(angle) * r )
 			y = round( math.sin(angle) * r )	
 			color = player.color.name
+			player_button_widget = load_uh_widget('playerbuttonwidget.xml')
+			icon = pychan.Icon(image = icon_path % color, position = (10, 10))
 			
-			player_button_widget = PlayerButtonWidget((int(x + x_offset_left), int(y + y_offset_left))) 
-			#player_button_widget.init(player)
-			player_button_widget.mapEvents({ 'playerbutton':Callback(self.show_diplomacy_widget, player) } )
+			player_button_widget.findChild(name="icon").addChild(icon)
+			player_button_widget.mapEvents({ 'playerbutton' : Callback(self.show_diplomacy_widget, player) } )
+			player_button_widget.position = ((int(x + x_offset_left), int(y + y_offset_left)))
 			container_left.addChild(player_button_widget)
 			
-			icon_left = pychan.Icon(image = icon_path % color, position = (int(x + x_offset_left), int(y + y_offset_left)))
-			container_left.addChild(icon_left)
+			#icon_left = pychan.Icon(image = icon_path % color, position = (int(x + x_offset_left), int(y + y_offset_left)))
+			#container_left.addChild(icon_left)
 			
 			
 			
@@ -157,15 +158,3 @@ class DiplomacyOverview(object):
 		"""Redraws gui. Necessary when current  has changed."""
 		pass
 
-class PlayerButtonWidget(pychan.widgets.Container):
-	def __init__(self, _position):
-		super(PlayerButtonWidget, self).__init__(size=(245,50),position=_position)
-		widget = load_uh_widget('playerbuttonwidget.xml')
-		self.addChild(widget)
-		self.widget = widget
-		
-		
-	def init(self,  player):
-		pass
-		#self.widget.mapEvents({
-			#'playerbutton' : DiplomacyOverview.show_diplomacy_widget(self, player)})
