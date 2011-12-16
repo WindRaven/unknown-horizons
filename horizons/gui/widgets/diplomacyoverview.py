@@ -18,7 +18,7 @@
 # Free Software Foundation, Inc.,
 # 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 # ###################################################
-
+from fife import fife
 from fife.extensions import pychan
 from horizons.util.gui import load_uh_widget
 from horizons.util import Callback
@@ -139,8 +139,8 @@ class DiplomacyOverview(object):
 			color = player.color.name
 			
 			player_button_widget = PlayerButtonWidget((int(x + x_offset_left), int(y + y_offset_left))) 
-			player_button_widget.init(player)
-			player_button_widget.mapEvents({ 'playerbutton':self.show_diplomacy_widget(player) } )
+			#player_button_widget.init(player)
+			player_button_widget.mapEvents({ 'playerbutton':Callback(self.show_diplomacy_widget, player) } )
 			container_left.addChild(player_button_widget)
 			
 			icon_left = pychan.Icon(image = icon_path % color, position = (int(x + x_offset_left), int(y + y_offset_left)))
