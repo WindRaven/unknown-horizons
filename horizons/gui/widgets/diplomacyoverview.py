@@ -29,12 +29,10 @@ from horizons.gui.widgets.unitoverview import StanceWidget
 import math
 
 class DiplomacyOverview(object):
-	"""Implementation of the logbook as described here:
-	http://wiki.unknown-horizons.org/w/Message_System
-
-	It displays longer messages, that are essential for scenarios.
-	Headings can be specified for each entry.
+	"""This is the now diplomacy menu interface.
+	It will have it's own wiki very soon
 	"""
+	_SELECTION_RECTANGLE_NAME = "_draw"
 	def __init__(self, session):
 		self.session = session
 		
@@ -93,6 +91,10 @@ class DiplomacyOverview(object):
 
 	def _init_gui(self):
 		"""Initial init of gui."""
+		#a = fife.Point(10, 10)
+		#b = fife.Point(1000,1000)
+		#self.session.view.renderer['GenericRenderer'].addLine(self.__class__._SELECTION_RECTANGLE_NAME, \
+			#	                                                      fife.RendererNode(a), fife.RendererNode(b), 10, 10, 200)
 		
 		self._gui = load_uh_widget("diplo_log.xml")
 		self._gui.mapEvents({
