@@ -94,7 +94,7 @@ class DiplomacyOverview(object):
 		a = fife.Point(10, 10)
 		b = fife.Point(1000,1000)
 		self.session.view.renderer['GenericRenderer'].addLine(self.__class__._SELECTION_RECTANGLE_NAME, \
-			#	                                                      fife.RendererNode(a), fife.RendererNode(b), 10, 10, 200)
+				                                                      fife.RendererNode(a), fife.RendererNode(b), 10, 10, 200)
 		
 		self._gui = load_uh_widget("diplo_log.xml")
 		self._gui.mapEvents({
